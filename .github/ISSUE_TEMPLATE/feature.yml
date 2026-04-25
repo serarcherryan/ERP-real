@@ -1,0 +1,50 @@
+name: Feature
+description: ERP feature request
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Business goal
+      description: What business outcome should this feature achieve?
+    validations:
+      required: true
+  - type: input
+    id: module
+    attributes:
+      label: Module
+      description: Which module owns this feature?
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client
+      multiple: true
+      options:
+        - Admin
+        - Staff
+        - Family
+        - Enterprise
+        - Internal service
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable acceptance criteria.
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk checklist
+      value: |
+        - Permission impact:
+        - Audit impact:
+        - Tenant isolation impact:
+        - Data migration:
+        - Performance impact:
+

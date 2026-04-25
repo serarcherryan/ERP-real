@@ -17,9 +17,11 @@ Before implementing a feature, bug fix, refactor, or architecture change:
 5. If the change adds or modifies async behavior, create or update an event contract from `docs/03-apis/event-contract-template.md`.
 6. If the change makes a major architectural or infrastructure decision, create an ADR from `docs/09-decisions/ADR-template.md`.
 7. Implement the smallest safe code change that satisfies the contract.
-8. Add or update tests according to `docs/05-quality/testing-harness.md`.
-9. Check security, tenant isolation, audit logging, observability, and release impact.
-10. Summarize what changed, what was verified, and any remaining risk.
+8. Generate or update test cases according to `docs/05-quality/test-case-lifecycle.md`.
+9. Add or update tests according to `docs/05-quality/testing-harness.md`.
+10. Run available checks, inspect failures, fix code or test cases, and rerun the affected tests.
+11. Check security, tenant isolation, audit logging, observability, and release impact.
+12. Summarize what changed, what was verified, and any remaining risk.
 
 ## Non-Negotiable ERP Rules
 
@@ -31,6 +33,7 @@ Before implementing a feature, bug fix, refactor, or architecture change:
 - Any high-concurrency path must consider idempotency, rate limiting, caching, pagination, and degradation.
 - Any state machine change must include invalid transition handling and tests.
 - Any financial change must include idempotency, reconciliation, and precision handling.
+- Any test failure must be classified, fixed or explicitly documented, and followed by targeted regression reruns.
 
 ## When To Create Harness Docs
 
@@ -51,7 +54,9 @@ Every substantial change should report:
 - Affected module/domain
 - Harness docs created or updated
 - Code changes
+- Test cases generated or updated
 - Tests or checks run
+- Failed tests, fixes, and rerun results
 - Security, audit, tenant isolation impact
 - Performance/concurrency impact
 - Migration/release/rollback notes
@@ -67,4 +72,3 @@ docs/03-apis/resident-profile-create.md
 docs/03-apis/care-task-completed-event.md
 docs/09-decisions/ADR-0001-monorepo-architecture.md
 ```
-

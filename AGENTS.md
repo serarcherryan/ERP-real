@@ -72,3 +72,25 @@ docs/03-apis/resident-profile-create.md
 docs/03-apis/care-task-completed-event.md
 docs/09-decisions/ADR-0001-monorepo-architecture.md
 ```
+
+## Multi-End Repository Layout
+
+Web、小程序、App 和共享前端能力统一放在当前 monorepo 中管理：
+
+```text
+apps/
+  web-admin/          Web 管理端
+  staff-miniapp/      员工小程序
+  family-miniapp/     家属/用户小程序
+  mobile-app/         后续 App
+packages/
+  shared-domain/      领域类型、角色权限、脱敏和可跨端复用的业务规则
+  api-client/         OpenAPI 生成的客户端和 DTO
+  ui-tokens/          多端设计变量
+```
+
+- 新端应放入 `apps/<end-name>/`，不要在仓库根目录直接创建端侧源码。
+- 可跨端复用的类型、权限、字典、脱敏、校验和 API 客户端应放入 `packages/`。
+- 端侧可以依赖共享包，但共享包不得依赖任何具体端。
+- 根目录 `package.json` 负责 workspace、统一测试和构建脚本。
+- 新增端、共享包或长期工程结构调整时，应更新 `docs/10-ai-collaboration/auto-harness-protocol.md`，必要时新增 ADR。

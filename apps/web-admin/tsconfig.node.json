@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.web-admin-node.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["vite.config.ts"]
+}

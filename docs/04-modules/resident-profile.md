@@ -15,7 +15,7 @@
 ## 2. 业务目标
 
 - 解决的问题：沉淀一人一档，统一长者基础资料、入住状态、联系人、健康摘要和服务记录入口。
-- 目标用户：社工、社工主管、部门经理、物业主管、管理层。
+- 目标用户：社工、社工主管、部门经理、物业经理、物业主管、管理层。
 - 成功指标：档案完整率、重复档案率、档案变更审计覆盖率、档案查询 P95。
 - 不做范围：完整医疗病历、完整账单明细、复杂照护计划编排。
 
@@ -24,6 +24,19 @@
 ```text
 创建档案 -> 录入基础信息 -> 绑定房间/床位/入住状态 -> 维护家属联系人 -> 维护标签与健康摘要 -> 查看服务时间线
 ```
+
+### 3.1 首期功能清单
+
+| 功能 | 说明 | 首期端 |
+| --- | --- | --- |
+| 档案总览 | 按机构、关键字、状态查看长者档案，展示入住状态、房间床位、护理等级、风险和完整度 | Web 管理端 |
+| 新建档案 | 录入基础身份、入住信息、联系人、健康摘要和初始标签 | Web 管理端 |
+| 编辑档案 | 维护基础信息、联系人、照护需求、健康风险摘要和待补字段 | Web 管理端 |
+| 详情查看 | 按档案摘要、入住信息、联系人、健康风险、完整度、服务时间线分 Tab 查看 | Web 管理端 |
+| 字段脱敏 | 物业角色和普通查看默认脱敏身份证、手机号和联系人电话 | Web 管理端 / 共享包 |
+| 档案完整度 | 根据必填字段、入住绑定、联系人、健康评估、合同和附件计算完整度 | Web 管理端 / BFF |
+| 风险标识 | 展示跌倒、压疮、慢病、认知、饮食等照护风险摘要 | Web 管理端 |
+| 导出审批 | 导出需权限、原因、范围和审计，首期仅保留入口 | Web 管理端 |
 
 ## 4. 领域模型
 
@@ -39,17 +52,20 @@
 
 | 表/集合 | 用途 | 关键字段 | 索引 | 数据量预估 |
 | --- | --- | --- | --- | --- |
-| residents | 长者基础档案 | id, tenant_id, facility_id, resident_no, name, gender, birth_date, status | tenant_id + facility_id + resident_no, tenant_id + name | 每机构千级到万级 |
-| family_contacts | 家属联系人 | id, tenant_id, facility_id, resident_id, name, relation, phone, is_emergency | resident_id, tenant_id + phone_hash | 每长者 1-5 条 |
+| residents | 长者基础档案与入住摘要 | id, tenant_id, facility_id, department_id, resident_no, name, gender, birth_date, identity_no_hash, status, admission_status, room_id, bed_id, care_level, completeness_score, version | tenant_id + facility_id + resident_no, tenant_id + identity_no_hash, tenant_id + facility_id + status, tenant_id + name | 每机构千级到万级 |
+| family_contacts | 家属联系人 | id, tenant_id, facility_id, resident_id, name, relation, phone_cipher, phone_hash, is_emergency, is_guardian, priority | resident_id, tenant_id + phone_hash | 每长者 1-5 条 |
+| resident_health_summaries | 健康风险摘要 | id, tenant_id, facility_id, resident_id, blood_type, allergy_summary, chronic_disease_summary, fall_risk_level, pressure_sore_risk_level, diet_requirement, emergency_plan | resident_id, tenant_id + facility_id + fall_risk_level | 每长者 1 条 |
 | resident_tags | 长者标签 | id, tenant_id, facility_id, resident_id, tag_code | resident_id + tag_code | 每长者 0-20 条 |
 | resident_attachments | 附件引用 | id, tenant_id, facility_id, resident_id, file_id, category | resident_id + category | 按附件量增长 |
 | resident_profile_snapshots | 档案摘要投影 | resident_id, summary_json, updated_at | tenant_id + facility_id, updated_at | 与长者数量同级 |
+
+详细数据库字段见 `docs/02-domain/resident-profile-data-schema.md`。
 
 ## 6. API 与事件
 
 | 类型 | 名称 | 调用方/订阅方 | 契约文件 |
 | --- | --- | --- | --- |
-| API | Resident Profile CRUD | Web 管理端、员工小程序、BFF | 待创建 |
+| API | Resident Profile Management | Web 管理端、员工小程序、BFF | `docs/03-apis/resident-profile-management.md` |
 | API | Resident Timeline Query | Web 管理端、驾驶舱 BFF | 待创建 |
 | Event | resident_profile.updated.v1 | 数据中心、搜索、审计、通知 | `docs/03-apis/resident-profile-updated-event.md` |
 
@@ -58,10 +74,20 @@
 | 操作 | 角色 | 数据范围 | 审计 |
 | --- | --- | --- | --- |
 | 创建 | 社工、社工主管 | 所属租户、机构、部门 | 是 |
-| 查看 | 社工、社工主管、部门经理、物业主管 | 授权机构、部门或绑定长者 | 高敏感字段是 |
+| 查看 | 社工、社工主管、部门经理、物业经理、物业主管 | 授权机构、部门或绑定长者 | 高敏感字段是 |
 | 修改 | 社工、社工主管 | 授权机构、部门 | 是 |
 | 删除/作废 | 社工主管、部门经理 | 授权机构，需原因 | 是 |
-| 导出 | 部门经理、授权管理员 | 授权机构，需原因和范围 | 是 |
+| 导出 | 部门经理、物业经理、授权管理员 | 授权机构，需原因和范围 | 是 |
+
+### 7.1 首期 Web 角色分组
+
+| 角色 | 所属部门 | 首期权限 |
+| --- | --- | --- |
+| 社工 | 养老部门 | 查看、创建、修改授权长者档案 |
+| 社工主管 | 养老部门 | 查看、创建、修改、作废、查看敏感字段 |
+| 部门经理 | 养老部门 | 查看、作废、导出、查看敏感字段 |
+| 物业经理 | 物业部门 | 查看、导出授权长者档案的房间与服务协同信息 |
+| 物业主管 | 物业部门 | 查看授权长者档案，默认不展示明文敏感字段 |
 
 ## 8. 并发与一致性
 

@@ -17,6 +17,7 @@
 | 数据迁移 | 更新发布变更文档或模块发布计划 |
 | 高并发路径 | 补容量、限流、缓存、幂等和压测说明 |
 | 架构/基础设施选择 | 创建 ADR |
+| 新增端侧应用或共享包 | 放入 `apps/` 或 `packages/`，更新目录文档和测试命令，必要时创建 ADR |
 | 小修复 | 检查是否影响契约、权限、审计和测试 |
 | 测试失败 | 分类失败原因，修复代码或用例，复跑相关测试 |
 
@@ -153,6 +154,28 @@ docs/09-decisions/ADR-000X-<decision-title>.md
 - Options Considered
 - Consequences
 - Validation
+
+### 新端侧应用或共享包
+
+端侧应用必须创建在：
+
+```text
+apps/<app-name>/
+```
+
+共享能力必须创建在：
+
+```text
+packages/<package-name>/
+```
+
+必须同步检查：
+
+- 根目录 `package.json` workspace 与统一脚本。
+- 共享包依赖方向：`apps` 可依赖 `packages`，`packages` 不依赖具体端。
+- `docs/01-architecture/system-blueprint.md` 的端与目录说明。
+- 相关模块文档、API 契约和测试用例是否需要更新。
+- `npm test` 与 `npm run build` 是否覆盖新增 workspace。
 
 ### 新测试用例
 

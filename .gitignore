@@ -1,1 +1,4 @@
 用户需求-智慧平台框架梳理-整合照护部.xlsx
+.DS_Store
+node_modules/
+dist/

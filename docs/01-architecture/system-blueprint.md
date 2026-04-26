@@ -70,6 +70,25 @@ Data Stores & Middleware
 | 员工小程序 | 社工、物业人员、护理人员 | 待办、工单处理、巡访记录、拍照上传 |
 | 用户/家属小程序 | 用户、家属 | 服务预约、通知查看、活动报名、沟通记录 |
 
+## 4.1 前端 Monorepo 目录
+
+```text
+apps/
+  web-admin/          Web 管理端
+  staff-miniapp/      员工小程序，后续按 Taro 创建
+  family-miniapp/     家属/用户小程序，后续按 Taro 创建
+  mobile-app/         后续 App
+packages/
+  shared-domain/      跨端领域类型、角色权限、字段脱敏和共享业务规则
+  api-client/         OpenAPI 生成的请求客户端和 DTO
+  ui-tokens/          设计变量、主题和跨端样式 token
+```
+
+- 端侧应用只放在 `apps/`，共享能力只放在 `packages/`。
+- `packages/shared-domain` 可被 Web、小程序和 App 共同依赖，但不得反向依赖具体端。
+- API DTO、权限常量、字段策略和字典应优先共享，避免多端重复定义。
+- 根目录 workspace 脚本负责统一测试、构建和端侧启动。
+
 ## 5. 首期交付边界
 
 | 模块 | 范围 | 不做范围 |
@@ -170,6 +189,7 @@ Prometheus / Grafana / Loki / Tempo
 - `docs/09-decisions/ADR-0001-platform-architecture.md`
 - `docs/09-decisions/ADR-0002-frontend-stack.md`
 - `docs/09-decisions/ADR-0003-data-analytics-architecture.md`
+- `docs/09-decisions/ADR-0004-frontend-monorepo-workspace.md`
 
 任何满足以下条件的选择都必须继续创建 ADR：
 

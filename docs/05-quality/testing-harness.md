@@ -46,6 +46,17 @@ docs/05-quality/test-case-lifecycle.md
 | 高并发路径 | 压测 + 指标观察 |
 | 支付/财务 | 幂等、对账、异常补偿 |
 
+## 3.2 Monorepo 测试命令
+
+| 命令 | 覆盖范围 |
+| --- | --- |
+| `npm test` | 所有 workspace 中声明的测试 |
+| `npm run build` | 所有 workspace 中声明的构建 |
+| `npm run test:web` | Web 管理端测试 |
+| `npm run test:shared` | 共享领域包测试 |
+
+新增 `apps/` 或 `packages/` workspace 时，必须确保根目录命令能覆盖对应测试和构建。
+
 ## 3.1 测试用例门禁
 
 | 检查项 | 要求 |

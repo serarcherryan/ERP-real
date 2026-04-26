@@ -12,6 +12,15 @@
 ## 推荐目录
 
 ```text
+apps/
+  web-admin/          Web 管理端
+  staff-miniapp/      员工小程序，后续创建
+  family-miniapp/     家属/用户小程序，后续创建
+  mobile-app/         后续 App，按需要创建
+packages/
+  shared-domain/      跨端领域类型、权限、脱敏和共享业务规则
+  api-client/         OpenAPI 生成客户端，后续创建
+  ui-tokens/          多端设计变量，后续创建
 docs/
   00-governance/       项目治理、协作规则、需求分层
   01-architecture/     总体架构、上下文、非功能目标
@@ -28,6 +37,18 @@ docs/
   ISSUE_TEMPLATE/      标准化需求、缺陷、技术债入口
   PULL_REQUEST_TEMPLATE.md
 ```
+
+## 当前工程命令
+
+```bash
+npm run dev:web      # 启动 Web 管理端
+npm test             # 运行所有 workspace 测试
+npm run build        # 构建所有 workspace
+npm run test:shared  # 运行共享领域包测试
+npm run test:web     # 运行 Web 管理端测试
+```
+
+根目录采用 npm workspaces 管理多端代码。新增小程序或 App 时优先创建到 `apps/`，共享类型、权限、字典、校验和 API client 放到 `packages/`，并同步更新 Harness 文档与测试用例。
 
 ## 使用顺序
 

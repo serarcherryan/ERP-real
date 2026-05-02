@@ -13,7 +13,7 @@ public class SysUserEntity {
     @Id
     private String id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String username;
 
     @Column(name = "password_hash", nullable = false)
@@ -33,6 +33,12 @@ public class SysUserEntity {
 
     @Column(nullable = false)
     private boolean enabled = true;
+
+    @Column(name = "is_super_admin", nullable = false)
+    private boolean superAdmin = false;
+
+    @Column(name = "permission_version", nullable = false)
+    private long permissionVersion = 1;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
@@ -56,11 +62,15 @@ public class SysUserEntity {
     public void setFacilityId(String facilityId) { this.facilityId = facilityId; }
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public boolean isSuperAdmin() { return superAdmin; }
+    public void setSuperAdmin(boolean superAdmin) { this.superAdmin = superAdmin; }
+    public long getPermissionVersion() { return permissionVersion; }
+    public void setPermissionVersion(long permissionVersion) { this.permissionVersion = permissionVersion; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 
     public AuthenticatedUser toAuthenticatedUser() {
-        return new AuthenticatedUser(id, displayName, tenantId, facilityId, role);
+        return new AuthenticatedUser(id, displayName, tenantId, facilityId, role, permissionVersion, superAdmin);
     }
 }

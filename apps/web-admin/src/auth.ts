@@ -6,6 +6,10 @@ export interface AuthUser {
     role: string;
     tenantId: string;
     facilityId: string;
+    roles?: string[];
+    permissions?: string[];
+    permissionVersion?: number;
+    superAdmin?: boolean;
 }
 
 interface LoginResponse {

@@ -5,5 +5,7 @@ public record AuthenticatedUser(
         String displayName,
         String tenantId,
         String facilityId,
-        String role) {
+        String role,
+        long permissionVersion,
+        boolean superAdmin) {
 }

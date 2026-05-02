@@ -6,6 +6,7 @@
   --bg-top-bar: rgba(5, 10, 20, 0.65);
   --bg-overview: rgba(5, 10, 20, 0.75);
   --bg-table: rgba(5, 10, 20, 0.6);
+  --bg-table-fixed: #050a14;
   --bg-stat: rgba(0, 229, 255, 0.03);
   --text-primary: #fff;
   --text-secondary: #8da4b8;
@@ -31,6 +32,7 @@
   --bg-top-bar: rgba(255, 255, 255, 0.85);
   --bg-overview: rgba(255, 255, 255, 0.75);
   --bg-table: rgba(255, 255, 255, 0.8);
+  --bg-table-fixed: #ffffff;
   --bg-stat: rgba(0, 123, 187, 0.03);
   --text-primary: #152935;
   --text-secondary: #4f6b86;
@@ -414,6 +416,49 @@ body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
 }
 
+.ant-table-cell-fix-left,
+.ant-table-cell-fix-right {
+  background: var(--bg-table-fixed) !important;
+}
+
+.identity-panel {
+  background: var(--bg-table);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.identity-panel-header {
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.identity-panel-header h4 {
+  color: var(--text-primary);
+  margin: 0 0 2px !important;
+}
+
+.identity-tabs .ant-tabs-nav {
+  margin-bottom: 18px;
+}
+
+.identity-role-select {
+  width: min(360px, 38vw);
+}
+
+.permission-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 8px 16px;
+}
+
+.permission-check-grid .ant-checkbox-wrapper {
+  min-height: 28px;
+  margin-inline-start: 0;
+}
+
 .table-link {
   padding: 0;
   height: auto;
@@ -556,8 +601,18 @@ body {
 
   .search-input,
   .facility-select,
-  .role-select {
+  .role-select,
+  .identity-role-select {
     width: 100%;
+  }
+
+  .identity-panel-header {
+    align-items: stretch !important;
+    flex-direction: column;
+  }
+
+  .permission-check-grid {
+    grid-template-columns: 1fr;
   }
 
   .resident-editor-grid {

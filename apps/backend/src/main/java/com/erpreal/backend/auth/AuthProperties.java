@@ -64,7 +64,7 @@ public class AuthProperties {
         }
 
         AuthenticatedUser toUser() {
-            return new AuthenticatedUser(userId, displayName, tenantId, facilityId, role);
+            return new AuthenticatedUser(userId, displayName, tenantId, facilityId, role, 1, false);
         }
     }
 }

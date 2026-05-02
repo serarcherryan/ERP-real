@@ -5,10 +5,12 @@ import {
   ReloadOutlined,
   DashboardOutlined,
   HomeOutlined,
+  KeyOutlined,
   PlusOutlined,
   SearchOutlined,
   TeamOutlined,
   ToolOutlined,
+  UserAddOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -80,6 +82,7 @@ const riskOptions = [
 ];
 const residentEditorStepKeys = ['profile', 'admission', 'contacts', 'health'] as const;
 type ResidentEditorStepKey = typeof residentEditorStepKeys[number];
+type WorkspaceKey = 'resident-profile' | 'organization';
 const residentEditorStepFields: Record<ResidentEditorStepKey, Array<keyof ResidentEditorFormValues>> = {
   profile: [
     'residentNo',
@@ -135,6 +138,7 @@ const statusColor: Record<ResidentView['status'], string> = {
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceKey>('resident-profile');
   const [authedUser, setAuthedUser] = useState<AuthUser | null>(() => {
     return isAuthenticated() ? getUser() : null;
   });
@@ -169,9 +173,16 @@ function App() {
 
   const roleKey = (authedUser?.role ?? 'social-worker') as RoleKey;
   const currentRole = roleByKey[roleKey];
-  const canCreate = hasPermission(roleKey, 'resident:create');
-  const canUpdate = hasPermission(roleKey, 'resident:update');
-  const canExport = hasPermission(roleKey, 'resident:export');
+  const canCreate = userCan(authedUser, 'resident.profile:create', hasPermission(roleKey, 'resident:create'));
+  const canUpdate = userCan(authedUser, 'resident.profile:update', hasPermission(roleKey, 'resident:update'));
+  const canExport = userCan(authedUser, 'resident.profile:export', hasPermission(roleKey, 'resident:export'));
+  const canReadUsers = userCan(authedUser, 'identity.user:read');
+  const canCreateUsers = userCan(authedUser, 'identity.user:create');
+  const canUpdateUsers = userCan(authedUser, 'identity.user:update');
+  const canDisableUsers = userCan(authedUser, 'identity.user:disable');
+  const canReadRoles = userCan(authedUser, 'identity.role:read');
+  const canUpdateRolePermissions = userCan(authedUser, 'identity.role:update_permissions');
+  const canManageIdentity = canReadUsers || canReadRoles || canCreateUsers || canUpdateUsers || canUpdateRolePermissions;
 
   useEffect(() => {
     if (!authedUser) {
@@ -461,14 +472,23 @@ function App() {
           </div>
           <Menu
             mode="inline"
-            selectedKeys={['resident-profile']}
+            selectedKeys={[activeWorkspace]}
+            onClick={({ key }) => {
+              if (key === 'organization' && canManageIdentity) {
+                setActiveWorkspace('organization');
+                return;
+              }
+              if (key === 'resident-profile') {
+                setActiveWorkspace('resident-profile');
+              }
+            }}
             items={[
               { key: 'dashboard', icon: <DashboardOutlined />, label: '运营驾驶舱' },
               { key: 'resident-profile', icon: <TeamOutlined />, label: '长者档案' },
               { key: 'admission', icon: <HomeOutlined />, label: '入住生活' },
               { key: 'work-order', icon: <ToolOutlined />, label: '工单中心' },
               { key: 'audit', icon: <AuditOutlined />, label: '审计合规' },
-              { key: 'organization', icon: <ApartmentOutlined />, label: '组织权限' },
+              { key: 'organization', icon: <ApartmentOutlined />, label: '组织权限', disabled: !canManageIdentity },
             ]}
           />
         </Sider>
@@ -477,7 +497,7 @@ function App() {
           <Header className="top-bar">
             <div className="title-group">
               <Text className="eyebrow">Web 管理端</Text>
-              <Title level={3}>长者档案管理</Title>
+              <Title level={3}>{activeWorkspace === 'organization' ? '组织权限管理' : '长者档案管理'}</Title>
             </div>
             <Space size={12}>
               <Tag color="cyan" className="role-tag">
@@ -509,6 +529,18 @@ function App() {
           </Header>
 
           <Content className="workspace">
+            {activeWorkspace === 'organization' ? (
+              <IdentityManagementPanel
+                currentUser={authedUser}
+                canReadUsers={canReadUsers}
+                canCreateUsers={canCreateUsers}
+                canUpdateUsers={canUpdateUsers}
+                canDisableUsers={canDisableUsers}
+                canReadRoles={canReadRoles}
+                canUpdateRolePermissions={canUpdateRolePermissions}
+              />
+            ) : (
+            <>
             <section className="overview-band">
               <div className="overview-copy">
                 <Text className="eyebrow">{getRoleDepartmentLabel(currentRole.department)} · {currentRole.name}</Text>
@@ -605,10 +637,12 @@ function App() {
                 dataSource={residentViews}
                 loading={loadingResidents}
                 pagination={{ pageSize: 8, showSizeChanger: false }}
-                scroll={{ x: 1420 }}
+                scroll={{ x: 'max-content' }}
                 locale={{ emptyText: <Empty description="没有匹配的长者档案" /> }}
               />
             </section>
+            </>
+            )}
           </Content>
         </Layout>
 
@@ -631,6 +665,422 @@ function App() {
         />
       </Layout>
     </ConfigProvider>
+  );
+}
+
+function IdentityManagementPanel({
+  currentUser,
+  canReadUsers,
+  canCreateUsers,
+  canUpdateUsers,
+  canDisableUsers,
+  canReadRoles,
+  canUpdateRolePermissions,
+}: {
+  currentUser: AuthUser | null;
+  canReadUsers: boolean;
+  canCreateUsers: boolean;
+  canUpdateUsers: boolean;
+  canDisableUsers: boolean;
+  canReadRoles: boolean;
+  canUpdateRolePermissions: boolean;
+}) {
+  const [createUserForm] = Form.useForm<CreateIdentityUserFormValues>();
+  const [users, setUsers] = useState<IdentityUserApiItem[]>([]);
+  const [roles, setRoles] = useState<IdentityRoleApiItem[]>([]);
+  const [permissions, setPermissions] = useState<IdentityPermissionApiItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [pendingUserRoleIds, setPendingUserRoleIds] = useState<Record<string, string[]>>({});
+  const [pendingRolePermissions, setPendingRolePermissions] = useState<Record<string, string[]>>({});
+
+  const roleOptions = roles.map((role) => ({ value: role.id, label: role.name }));
+  const permissionOptions = permissions.map((permission) => ({
+    value: permission.code,
+    label: `${permission.name} · ${permission.code}`,
+  }));
+
+  const loadIdentityData = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [usersResponse, rolesResponse, permissionsResponse] = await Promise.all([
+        canReadUsers ? apiFetch('/api/v1/users') : Promise.resolve(null),
+        canReadRoles ? apiFetch('/api/v1/roles') : Promise.resolve(null),
+        canReadRoles ? apiFetch('/api/v1/permissions') : Promise.resolve(null),
+      ]);
+      if (usersResponse && !usersResponse.ok) {
+        const error = await usersResponse.json().catch(() => null);
+        throw new Error(error?.message || '用户列表加载失败');
+      }
+      if (rolesResponse && !rolesResponse.ok) {
+        const error = await rolesResponse.json().catch(() => null);
+        throw new Error(error?.message || '角色列表加载失败');
+      }
+      if (permissionsResponse && !permissionsResponse.ok) {
+        const error = await permissionsResponse.json().catch(() => null);
+        throw new Error(error?.message || '权限列表加载失败');
+      }
+      const usersBody: ApiEnvelope<IdentityUserApiItem[]> | null = usersResponse ? await usersResponse.json() : null;
+      const rolesBody: ApiEnvelope<IdentityRoleApiItem[]> | null = rolesResponse ? await rolesResponse.json() : null;
+      const permissionsBody: ApiEnvelope<IdentityPermissionApiItem[]> | null = permissionsResponse
+        ? await permissionsResponse.json()
+        : null;
+      setUsers(usersBody?.data ?? []);
+      setRoles(rolesBody?.data ?? []);
+      setPermissions(permissionsBody?.data ?? []);
+      setPendingUserRoleIds({});
+      setPendingRolePermissions({});
+    } catch (error: unknown) {
+      setLoadError(error instanceof Error ? error.message : '组织权限数据加载失败');
+      setUsers([]);
+      setRoles([]);
+      setPermissions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [canReadRoles, canReadUsers]);
+
+  useEffect(() => {
+    loadIdentityData();
+  }, [loadIdentityData]);
+
+  const saveUserRoles = async (user: IdentityUserApiItem) => {
+    const roleIds = pendingUserRoleIds[user.id] ?? roleIdsFromCodes(roles, user.roles);
+    setSubmitting(true);
+    try {
+      const response = await apiFetch(`/api/v1/users/${user.id}/roles`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roleIds }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || '用户角色更新失败');
+      }
+      message.success('用户角色已更新。');
+      await loadIdentityData();
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '用户角色更新失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const disableUser = async (user: IdentityUserApiItem) => {
+    setSubmitting(true);
+    try {
+      const response = await apiFetch(`/api/v1/users/${user.id}/disable`, { method: 'POST' });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || '用户禁用失败');
+      }
+      message.success('用户已禁用。');
+      await loadIdentityData();
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '用户禁用失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const createUser = async () => {
+    const values = await createUserForm.validateFields();
+    setSubmitting(true);
+    try {
+      const response = await apiFetch('/api/v1/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || '用户创建失败');
+      }
+      message.success('用户已创建。');
+      setCreateOpen(false);
+      createUserForm.resetFields();
+      await loadIdentityData();
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '用户创建失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const saveRolePermissions = async (role: IdentityRoleApiItem) => {
+    const permissionCodes = pendingRolePermissions[role.id] ?? role.permissionCodes;
+    setSubmitting(true);
+    try {
+      const response = await apiFetch(`/api/v1/roles/${role.id}/permissions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissionCodes }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || '角色权限更新失败');
+      }
+      message.success('角色权限已更新。');
+      await loadIdentityData();
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : '角色权限更新失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const userColumns: ColumnsType<IdentityUserApiItem> = [
+    {
+      title: '用户',
+      dataIndex: 'username',
+      render: (_, user) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{user.displayName}</Text>
+          <Text className="muted">{user.username}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '角色',
+      dataIndex: 'roles',
+      render: (_, user) => (
+        <Select
+          mode="multiple"
+          className="identity-role-select"
+          disabled={!canUpdateUsers || user.id === currentUser?.userId}
+          value={pendingUserRoleIds[user.id] ?? roleIdsFromCodes(roles, user.roles)}
+          options={roleOptions}
+          onChange={(roleIds) => setPendingUserRoleIds((current) => ({ ...current, [user.id]: roleIds }))}
+        />
+      ),
+    },
+    {
+      title: '权限数',
+      dataIndex: 'permissions',
+      width: 100,
+      render: (_, user) => user.permissions.length,
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      width: 100,
+      render: (_, user) => (
+        <Tag color={user.enabled ? 'green' : 'default'}>{user.enabled ? '启用' : '禁用'}</Tag>
+      ),
+    },
+    {
+      title: '操作',
+      width: 180,
+      render: (_, user) => (
+        <Space>
+          <Button
+            size="small"
+            disabled={!canUpdateUsers || user.id === currentUser?.userId}
+            loading={submitting}
+            onClick={() => saveUserRoles(user)}
+          >
+            保存角色
+          </Button>
+          <Button
+            size="small"
+            danger
+            disabled={!canDisableUsers || user.id === currentUser?.userId || user.superAdmin || !user.enabled}
+            loading={submitting}
+            onClick={() => disableUser(user)}
+          >
+            禁用
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const roleColumns: ColumnsType<IdentityRoleApiItem> = [
+    {
+      title: '角色',
+      dataIndex: 'name',
+      width: 220,
+      render: (_, role) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{role.name}</Text>
+          <Text className="muted">{role.code}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '权限',
+      dataIndex: 'permissionCodes',
+      render: (_, role) => (
+        <Checkbox.Group
+          className="permission-check-grid"
+          disabled={!canUpdateRolePermissions || role.code === 'admin'}
+          value={pendingRolePermissions[role.id] ?? role.permissionCodes}
+          options={permissionOptions}
+          onChange={(values) => setPendingRolePermissions((current) => ({
+            ...current,
+            [role.id]: values.map(String),
+          }))}
+        />
+      ),
+    },
+    {
+      title: '操作',
+      width: 110,
+      render: (_, role) => (
+        <Button
+          size="small"
+          disabled={!canUpdateRolePermissions || role.code === 'admin'}
+          loading={submitting}
+          onClick={() => saveRolePermissions(role)}
+        >
+          保存权限
+        </Button>
+      ),
+    },
+  ];
+
+  const permissionColumns: ColumnsType<IdentityPermissionApiItem> = [
+    { title: '权限名称', dataIndex: 'name' },
+    { title: '权限编码', dataIndex: 'code' },
+    { title: '模块', dataIndex: 'moduleName', width: 160 },
+    {
+      title: '风险',
+      dataIndex: 'riskLevel',
+      width: 100,
+      render: (riskLevel) => <Tag color={riskLevel === 'P0' ? 'red' : 'gold'}>{riskLevel}</Tag>,
+    },
+  ];
+
+  if (!canReadUsers && !canReadRoles) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message="当前账号无组织权限管理入口"
+        description="需要 identity.user:read 或 identity.role:read 权限。"
+      />
+    );
+  }
+
+  return (
+    <section className="identity-panel">
+      <Flex justify="space-between" align="center" className="identity-panel-header">
+        <Space>
+          <UserRoundCheck size={22} />
+          <div>
+            <Title level={4}>用户、角色与权限</Title>
+            <Text className="muted">当前租户机构内的身份配置</Text>
+          </div>
+        </Space>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadIdentityData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<UserAddOutlined />}
+            disabled={!canCreateUsers}
+            onClick={() => setCreateOpen(true)}
+          >
+            新增用户
+          </Button>
+        </Space>
+      </Flex>
+
+      {loadError && (
+        <Alert
+          type="error"
+          showIcon
+          message="组织权限加载失败"
+          description={loadError}
+          action={<Button onClick={loadIdentityData}>重试</Button>}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      <Tabs
+        className="identity-tabs"
+        items={[
+          {
+            key: 'users',
+            label: '用户',
+            children: (
+              <Table
+                rowKey="id"
+                columns={userColumns}
+                dataSource={users}
+                loading={loading}
+                pagination={false}
+                locale={{ emptyText: <Empty description="暂无用户数据" /> }}
+              />
+            ),
+          },
+          {
+            key: 'roles',
+            label: '角色权限',
+            children: (
+              <Table
+                rowKey="id"
+                columns={roleColumns}
+                dataSource={roles}
+                loading={loading}
+                pagination={false}
+                locale={{ emptyText: <Empty description="暂无角色数据" /> }}
+              />
+            ),
+          },
+          {
+            key: 'permissions',
+            label: '权限注册表',
+            children: (
+              <Table
+                rowKey="id"
+                columns={permissionColumns}
+                dataSource={permissions}
+                loading={loading}
+                pagination={false}
+                locale={{ emptyText: <Empty description="暂无权限数据" /> }}
+              />
+            ),
+          },
+        ]}
+      />
+
+      <Modal
+        title="新增用户"
+        open={createOpen}
+        onCancel={() => setCreateOpen(false)}
+        onOk={createUser}
+        okText="创建"
+        confirmLoading={submitting}
+        destroyOnHidden
+      >
+        <Form form={createUserForm} layout="vertical">
+          <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
+            <Input autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="displayName" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label="初始密码"
+            rules={[
+              { required: true, message: '请输入初始密码' },
+              { min: 8, message: '初始密码至少 8 位' },
+            ]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Form.Item name="roleIds" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
+            <Select mode="multiple" options={roleOptions} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </section>
   );
 }
 
@@ -1442,6 +1892,14 @@ function isValidationError(error: unknown) {
   return Boolean(error && typeof error === 'object' && 'errorFields' in error);
 }
 
+function userCan(user: AuthUser | null, permissionCode: string, fallback = false) {
+  return Boolean(user?.superAdmin || user?.permissions?.includes(permissionCode) || fallback);
+}
+
+function roleIdsFromCodes(roles: IdentityRoleApiItem[], roleCodes: string[]) {
+  return roles.filter((role) => roleCodes.includes(role.code)).map((role) => role.id);
+}
+
 interface ApiEnvelope<T> {
   data: T;
 }
@@ -1454,6 +1912,46 @@ interface ResidentListApiResponse extends ApiEnvelope<{
 }> {}
 
 interface ResidentDetailApiResponse extends ApiEnvelope<ResidentDetailApiItem> {}
+
+interface IdentityPermissionApiItem {
+  id: string;
+  code: string;
+  name: string;
+  moduleName: string;
+  action: string;
+  riskLevel: string;
+}
+
+interface IdentityRoleApiItem {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  systemBuiltin: boolean;
+  enabled: boolean;
+  permissionCodes: string[];
+}
+
+interface IdentityUserApiItem {
+  id: string;
+  username: string;
+  displayName: string;
+  role: string;
+  tenantId: string;
+  facilityId: string;
+  enabled: boolean;
+  superAdmin: boolean;
+  permissionVersion: number;
+  roles: string[];
+  permissions: string[];
+}
+
+interface CreateIdentityUserFormValues {
+  username: string;
+  password: string;
+  displayName: string;
+  roleIds: string[];
+}
 
 interface ResidentListApiItem {
   id: string;

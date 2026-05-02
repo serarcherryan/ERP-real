@@ -353,13 +353,13 @@ public class RoomService {
     }
 
     private void assertMaintainer(RequestContext context) {
-        if (!List.of("property-manager", "property-supervisor", "department-manager").contains(context.role())) {
+        if (!List.of("property-manager", "property-supervisor", "department-manager", "admin").contains(context.role())) {
             throw new ApiException("ROOM_FORBIDDEN", HttpStatus.FORBIDDEN, "Current role cannot maintain rooms");
         }
     }
 
     private void assertAdmissionMaintainer(RequestContext context) {
-        if (!List.of("social-worker", "social-worker-supervisor", "department-manager").contains(context.role())) {
+        if (!List.of("social-worker", "social-worker-supervisor", "department-manager", "admin").contains(context.role())) {
             throw new ApiException("ROOM_FORBIDDEN", HttpStatus.FORBIDDEN, "Current role cannot assign resident beds");
         }
     }

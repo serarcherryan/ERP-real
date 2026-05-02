@@ -4,6 +4,7 @@ import com.erpreal.backend.audit.AuditService;
 import com.erpreal.backend.common.ApiError;
 import com.erpreal.backend.room.RequestContext;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,26 +23,32 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuditService auditService;
+    private final PermissionService permissionService;
 
     public AuthController(SysUserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            AuditService auditService) {
+            AuditService auditService,
+            PermissionService permissionService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.auditService = auditService;
+        this.permissionService = permissionService;
     }
 
-    public record LoginRequest(String username, String password) {
+    public record LoginRequest(String username, String password, String tenantId) {
     }
 
     public record LoginResponse(String token, UserInfo user) {
     }
 
     public record UserInfo(String userId, String displayName, String role,
-            String tenantId, String facilityId) {
+            String tenantId, String facilityId, Set<String> roles, Set<String> permissions,
+            long permissionVersion, boolean superAdmin) {
     }
+
+    private static final String DEFAULT_TENANT_ID = "tenant-yiyang";
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
@@ -51,7 +58,10 @@ public class AuthController {
                     new ApiError("INVALID_INPUT", "用户名和密码不能为空", UUID.randomUUID().toString()));
         }
 
-        var userOpt = userRepository.findByUsername(request.username().trim());
+        var tenantId = request.tenantId() != null && !request.tenantId().isBlank()
+                ? request.tenantId().trim()
+                : DEFAULT_TENANT_ID;
+        var userOpt = userRepository.findByTenantIdAndUsername(tenantId, request.username().trim());
         if (userOpt.isEmpty()
                 || !userOpt.get().isEnabled()
                 || !passwordEncoder.matches(request.password(), userOpt.get().getPasswordHash())) {
@@ -62,18 +72,22 @@ public class AuthController {
 
         var user = userOpt.get();
         var token = jwtService.generateToken(user);
+        var snapshot = permissionService.snapshot(user.toAuthenticatedUser());
         var userInfo = new UserInfo(user.getId(), user.getDisplayName(),
-                user.getRole(), user.getTenantId(), user.getFacilityId());
+                user.getRole(), user.getTenantId(), user.getFacilityId(),
+                snapshot.roles(), snapshot.permissions(), snapshot.permissionVersion(), snapshot.superAdmin());
 
-        log.info("User logged in: username={}, role={}", user.getUsername(), user.getRole());
+        log.info("User logged in: username={}, role={}, tenantId={}", user.getUsername(), user.getRole(), user.getTenantId());
         return ResponseEntity.ok(new LoginResponse(token, userInfo));
     }
 
     @GetMapping("/me")
     public ResponseEntity<?> me(HttpServletRequest request) {
         var authedUser = AuthContext.requireUser(request);
+        var snapshot = permissionService.snapshot(authedUser);
         var userInfo = new UserInfo(authedUser.userId(), authedUser.displayName(),
-                authedUser.role(), authedUser.tenantId(), authedUser.facilityId());
+                authedUser.role(), authedUser.tenantId(), authedUser.facilityId(),
+                snapshot.roles(), snapshot.permissions(), snapshot.permissionVersion(), snapshot.superAdmin());
         return ResponseEntity.ok(userInfo);
     }
 

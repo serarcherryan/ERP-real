@@ -23,7 +23,7 @@ GET /api/v1/auth/me
 
 - 用户故事：后台用户输入用户名和密码后获取 JWT，Web 管理端用 JWT 访问后续业务接口。
 - 前置条件：`sys_users` 中存在 enabled 用户，密码 hash 已初始化。
-- 后置结果：登录成功返回 token 和用户上下文；登录失败返回错误并写入审计。
+- 后置结果：登录成功返回 token、用户上下文、角色和动态权限；登录失败返回错误并写入审计。
 - 幂等要求：登录接口无业务写入幂等要求，失败审计允许追加。
 - 权限要求：`/login` 公开；`/me` 需要 Bearer token。
 - 审计要求：登录失败写 `audit_logs`，登录成功当前记录应用日志。
@@ -35,7 +35,8 @@ GET /api/v1/auth/me
 ```json
 {
   "username": "social_worker",
-  "password": "Erp@2026"
+  "password": "Erp@2026",
+  "tenantId": "tenant-yiyang"
 }
 ```
 
@@ -43,6 +44,7 @@ GET /api/v1/auth/me
 | --- | --- | --- | --- | --- |
 | username | string | 是 | 非空，匹配 `sys_users.username` | 登录用户名 |
 | password | string | 是 | 非空 | 明文仅用于本次校验，不落库 |
+| tenantId | string | 否 | 有效租户 ID | 指定登录租户，缺省为 `tenant-yiyang` |
 
 ### 4.2 GET /api/v1/auth/me
 
@@ -62,7 +64,14 @@ Authorization: Bearer <jwt>
     "displayName": "社工",
     "role": "social-worker",
     "tenantId": "tenant-yiyang",
-    "facilityId": "facility-hecheng"
+    "facilityId": "facility-hecheng",
+    "roles": ["social-worker"],
+    "permissions": [
+      "resident.profile:create",
+      "resident.profile:read"
+    ],
+    "permissionVersion": 1,
+    "superAdmin": false
   }
 }
 ```
@@ -75,7 +84,14 @@ Authorization: Bearer <jwt>
   "displayName": "社工",
   "role": "social-worker",
   "tenantId": "tenant-yiyang",
-  "facilityId": "facility-hecheng"
+  "facilityId": "facility-hecheng",
+  "roles": ["social-worker"],
+  "permissions": [
+    "resident.profile:create",
+    "resident.profile:read"
+  ],
+  "permissionVersion": 1,
+  "superAdmin": false
 }
 ```
 
@@ -89,7 +105,8 @@ Authorization: Bearer <jwt>
 
 ## 7. 兼容策略
 
-- JWT claims 当前包含 `sub`、`displayName`、`role`、`tenantId`、`facilityId`。
+- JWT claims 当前包含 `sub`、`displayName`、`role`、`tenantId`、`facilityId`、`permissionVersion`。
+- 权限明细不以 JWT 为最终准入依据；`/login` 和 `/me` 返回的 `permissions` 用于前端菜单/按钮体验，后端接口仍实时校验权限服务。
 - 新增用户字段应向后兼容；变更 token 结构需更新 Web `AuthUser` 和后端 `JwtService`。
 - 初始账号仅用于开发和首期演示，生产账号初始化策略需要单独固化。
 
@@ -112,6 +129,8 @@ Authorization: Bearer <jwt>
 - 密码错误
 - disabled 用户不可登录
 - JWT 可访问 `/api/v1/auth/me`
+- `/api/v1/auth/me` 返回动态权限列表
+- admin 用户返回所有权限和 `superAdmin=true`
 - 无 token 访问受保护接口返回 `AUTH_REQUIRED`
 - 登录失败写审计
 - 前端登录成功进入管理端

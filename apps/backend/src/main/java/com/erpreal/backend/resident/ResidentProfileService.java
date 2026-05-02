@@ -1,6 +1,8 @@
 package com.erpreal.backend.resident;
 
 import com.erpreal.backend.audit.AuditService;
+import com.erpreal.backend.auth.PermissionCodes;
+import com.erpreal.backend.auth.PermissionService;
 import com.erpreal.backend.auth.SysUserRepository;
 import com.erpreal.backend.common.ApiException;
 import com.erpreal.backend.idempotency.IdempotencyRecordEntity;
@@ -39,6 +41,7 @@ public class ResidentProfileService {
     private final ResidentTagRepository tags;
     private final IdempotencyRecordRepository idempotencyRecords;
     private final SysUserRepository users;
+    private final PermissionService permissionService;
     private final AuditService auditService;
     private final SensitiveFieldCodec codec;
     private final ObjectMapper mapper;
@@ -50,6 +53,7 @@ public class ResidentProfileService {
             ResidentTagRepository tags,
             IdempotencyRecordRepository idempotencyRecords,
             SysUserRepository users,
+            PermissionService permissionService,
             AuditService auditService,
             SensitiveFieldCodec codec,
             ObjectMapper mapper) {
@@ -59,6 +63,7 @@ public class ResidentProfileService {
         this.tags = tags;
         this.idempotencyRecords = idempotencyRecords;
         this.users = users;
+        this.permissionService = permissionService;
         this.auditService = auditService;
         this.codec = codec;
         this.mapper = mapper;
@@ -98,7 +103,7 @@ public class ResidentProfileService {
 
     @Transactional
     public ResidentDtos.ResidentDetailResponse create(RequestContext context, ResidentDtos.UpsertResidentRequest request) {
-        assertCanWrite(context);
+        assertCanCreate(context);
         var requestHash = hashRequest(request);
         var idempotencyRecord = reserveIdempotency(context, "resident.create", requestHash);
         if (idempotencyRecord != null && "completed".equals(idempotencyRecord.status)) {
@@ -136,7 +141,7 @@ public class ResidentProfileService {
     @Transactional
     public ResidentDtos.ResidentDetailResponse update(
             RequestContext context, String residentId, ResidentDtos.UpsertResidentRequest request) {
-        assertCanWrite(context);
+        assertCanUpdate(context);
         var resident = findResident(context, residentId);
         if (request.version() == null || request.version() != resident.version) {
             throw new ApiException("RESIDENT_PROFILE_VERSION_CONFLICT", HttpStatus.CONFLICT,
@@ -435,31 +440,27 @@ public class ResidentProfileService {
     }
 
     private void assertCanRead(RequestContext context) {
-        if (!List.of("social-worker", "social-worker-supervisor", "department-manager",
-                "property-manager", "property-supervisor").contains(context.role())) {
-            throw forbidden();
-        }
+        permissionService.require(context, PermissionCodes.RESIDENT_PROFILE_READ, "RESIDENT_PROFILE_FORBIDDEN",
+                "Current user cannot read resident profile");
     }
 
-    private void assertCanWrite(RequestContext context) {
-        if (!List.of("social-worker", "social-worker-supervisor").contains(context.role())) {
-            throw forbidden();
-        }
+    private void assertCanCreate(RequestContext context) {
+        permissionService.require(context, PermissionCodes.RESIDENT_PROFILE_CREATE, "RESIDENT_PROFILE_FORBIDDEN",
+                "Current user cannot create resident profile");
+    }
+
+    private void assertCanUpdate(RequestContext context) {
+        permissionService.require(context, PermissionCodes.RESIDENT_PROFILE_UPDATE, "RESIDENT_PROFILE_FORBIDDEN",
+                "Current user cannot update resident profile");
     }
 
     private void assertCanVoid(RequestContext context) {
-        if (!List.of("social-worker-supervisor", "department-manager").contains(context.role())) {
-            throw forbidden();
-        }
+        permissionService.require(context, PermissionCodes.RESIDENT_PROFILE_DELETE, "RESIDENT_PROFILE_FORBIDDEN",
+                "Current user cannot delete resident profile");
     }
 
     private boolean canReadSensitive(RequestContext context) {
-        return List.of("social-worker-supervisor", "department-manager").contains(context.role());
-    }
-
-    private ApiException forbidden() {
-        return new ApiException("RESIDENT_PROFILE_FORBIDDEN", HttpStatus.FORBIDDEN,
-                "Current role cannot access resident profile");
+        return List.of("social-worker-supervisor", "department-manager", "admin").contains(context.role());
     }
 
     private ApiException duplicated() {

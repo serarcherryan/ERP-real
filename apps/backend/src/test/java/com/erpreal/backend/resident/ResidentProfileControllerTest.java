@@ -127,7 +127,7 @@ class ResidentProfileControllerTest {
     }
 
     @Test
-    void rejectsWriteForPropertyRoleAndSupportsVersionedUpdate() throws Exception {
+    void rejectsUpdateForSocialWorkerAndSupportsPropertyManagerUpdate() throws Exception {
         var residentId = createResident("CY-2026-API-005", "310101194405126433");
         var detail = mockMvc.perform(get("/api/v1/residents/" + residentId)
                         .header("Authorization", SOCIAL_WORKER_SUPERVISOR_TOKEN))
@@ -137,14 +137,14 @@ class ResidentProfileControllerTest {
         var updateBody = residentBodyWithVersion("CY-2026-API-005", "310101194405126433", version);
 
         mockMvc.perform(patch("/api/v1/residents/" + residentId)
-                        .header("Authorization", PROPERTY_MANAGER_TOKEN)
+                        .header("Authorization", SOCIAL_WORKER_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code", is("RESIDENT_PROFILE_FORBIDDEN")));
 
         mockMvc.perform(patch("/api/v1/residents/" + residentId)
-                        .header("Authorization", SOCIAL_WORKER_TOKEN)
+                        .header("Authorization", PROPERTY_MANAGER_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateBody))
                 .andExpect(status().isOk())

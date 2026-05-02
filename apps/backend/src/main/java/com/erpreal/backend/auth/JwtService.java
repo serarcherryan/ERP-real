@@ -30,6 +30,8 @@ public class JwtService {
                 .claim("role", user.getRole())
                 .claim("tenantId", user.getTenantId())
                 .claim("facilityId", user.getFacilityId())
+                .claim("permissionVersion", user.getPermissionVersion())
+                .claim("superAdmin", user.isSuperAdmin())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(TOKEN_VALIDITY)))
                 .signWith(key)
@@ -43,12 +45,15 @@ public class JwtService {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
+            var permissionVersion = claims.get("permissionVersion", Number.class);
             return new AuthenticatedUser(
                     claims.getSubject(),
                     claims.get("displayName", String.class),
                     claims.get("tenantId", String.class),
                     claims.get("facilityId", String.class),
-                    claims.get("role", String.class));
+                    claims.get("role", String.class),
+                    permissionVersion == null ? 1 : permissionVersion.longValue(),
+                    Boolean.TRUE.equals(claims.get("superAdmin", Boolean.class)));
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }

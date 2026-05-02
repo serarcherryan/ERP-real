@@ -1,6 +1,7 @@
 export type Department = 'elderly-care' | 'property';
 
 export type RoleKey =
+  | 'admin'
   | 'social-worker'
   | 'social-worker-supervisor'
   | 'department-manager'
@@ -24,6 +25,20 @@ export interface RoleDefinition {
 }
 
 export const roleDefinitions: RoleDefinition[] = [
+  {
+    key: 'admin',
+    name: '管理员',
+    department: 'elderly-care',
+    permissions: [
+      'resident:read',
+      'resident:create',
+      'resident:update',
+      'resident:void',
+      'resident:export',
+      'resident:sensitive:read',
+    ],
+    description: '平台管理员，拥有所有权限。',
+  },
   {
     key: 'social-worker',
     name: '社工',

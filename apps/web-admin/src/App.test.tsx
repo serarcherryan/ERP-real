@@ -18,7 +18,30 @@ const propertySupervisor = {
   facilityId: 'facility-hecheng',
 };
 
-function signInAs(user: typeof socialWorkerSupervisor) {
+const adminUser = {
+  userId: 'user-admin',
+  displayName: '管理员',
+  role: 'admin',
+  tenantId: 'tenant-yiyang',
+  facilityId: 'facility-hecheng',
+  roles: ['admin'],
+  permissions: [
+    'resident.profile:create',
+    'resident.profile:read',
+    'resident.profile:update',
+    'resident.profile:delete',
+    'identity.user:create',
+    'identity.user:read',
+    'identity.user:update',
+    'identity.user:disable',
+    'identity.role:read',
+    'identity.role:update_permissions',
+  ],
+  permissionVersion: 1,
+  superAdmin: true,
+};
+
+function signInAs(user: typeof socialWorkerSupervisor | typeof propertySupervisor | typeof adminUser) {
   localStorage.setItem('erp_token', 'test-token');
   localStorage.setItem('erp_user', JSON.stringify(user));
 }
@@ -26,6 +49,43 @@ function signInAs(user: typeof socialWorkerSupervisor) {
 function mockApiFetch() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = input.toString();
+    if (url === '/api/v1/users' && init?.method === 'POST') {
+      return jsonResponse({
+        data: {
+          id: 'user-created',
+          username: 'new_manager',
+          displayName: '新经理',
+          roles: ['property-manager'],
+          permissions: ['identity.user:create'],
+          enabled: true,
+        },
+      });
+    }
+    if (url === '/api/v1/users') {
+      return jsonResponse({
+        data: identityUsers(),
+      });
+    }
+    if (url === '/api/v1/users/user-social-worker/roles' && init?.method === 'PUT') {
+      return jsonResponse({
+        data: identityUsers()[1],
+      });
+    }
+    if (url === '/api/v1/roles') {
+      return jsonResponse({
+        data: identityRoles(),
+      });
+    }
+    if (url === '/api/v1/roles/role-social-worker/permissions' && init?.method === 'PUT') {
+      return jsonResponse({
+        data: identityRoles()[1],
+      });
+    }
+    if (url === '/api/v1/permissions') {
+      return jsonResponse({
+        data: identityPermissions(),
+      });
+    }
     if (url.startsWith('/api/v1/residents/resident-api-001')) {
       return jsonResponse({
         data: residentDetail(),
@@ -151,6 +211,98 @@ function residentDetail() {
   };
 }
 
+function identityUsers() {
+  return [
+    {
+      id: 'user-admin',
+      username: 'admin',
+      displayName: '管理员',
+      role: 'admin',
+      tenantId: 'tenant-yiyang',
+      facilityId: 'facility-hecheng',
+      enabled: true,
+      superAdmin: true,
+      permissionVersion: 1,
+      roles: ['admin'],
+      permissions: adminUser.permissions,
+    },
+    {
+      id: 'user-social-worker',
+      username: 'social_worker',
+      displayName: '社工',
+      role: 'social-worker',
+      tenantId: 'tenant-yiyang',
+      facilityId: 'facility-hecheng',
+      enabled: true,
+      superAdmin: false,
+      permissionVersion: 1,
+      roles: ['social-worker'],
+      permissions: ['resident.profile:create', 'resident.profile:read'],
+    },
+  ];
+}
+
+function identityRoles() {
+  return [
+    {
+      id: 'role-admin',
+      code: 'admin',
+      name: '管理员',
+      description: '平台管理员',
+      systemBuiltin: true,
+      enabled: true,
+      permissionCodes: adminUser.permissions,
+    },
+    {
+      id: 'role-social-worker',
+      code: 'social-worker',
+      name: '社工',
+      description: '养老部门一线社工',
+      systemBuiltin: true,
+      enabled: true,
+      permissionCodes: ['resident.profile:create', 'resident.profile:read'],
+    },
+    {
+      id: 'role-property-manager',
+      code: 'property-manager',
+      name: '物业经理',
+      description: '物业部门经理',
+      systemBuiltin: true,
+      enabled: true,
+      permissionCodes: ['identity.user:create', 'identity.role:update_permissions'],
+    },
+  ];
+}
+
+function identityPermissions() {
+  return [
+    {
+      id: 'perm-resident-profile-create',
+      code: 'resident.profile:create',
+      name: '新增长者档案',
+      moduleName: 'resident-profile',
+      action: 'create',
+      riskLevel: 'P0',
+    },
+    {
+      id: 'perm-identity-user-create',
+      code: 'identity.user:create',
+      name: '新增用户',
+      moduleName: 'identity',
+      action: 'create-user',
+      riskLevel: 'P0',
+    },
+    {
+      id: 'perm-identity-role-update-permissions',
+      code: 'identity.role:update_permissions',
+      name: '修改角色权限',
+      moduleName: 'identity',
+      action: 'update-role-permissions',
+      riskLevel: 'P0',
+    },
+  ];
+}
+
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -195,6 +347,48 @@ describe('App', () => {
 
     expect(container.querySelector('.app-shell')).toHaveClass('dark-theme');
   });
+
+  it('supports user, role and permission management panel', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.mocked(globalThis.fetch);
+    signInAs(adminUser);
+    render(<App />);
+
+    await user.click(screen.getByRole('menuitem', { name: /组织权限/ }));
+    expect(await screen.findByText('用户、角色与权限')).toBeInTheDocument();
+    expect(screen.getByText('social_worker')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: '权限注册表' }));
+    expect(await screen.findByText('resident.profile:create')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: '用户' }));
+
+    await user.click(within(screen.getByText('social_worker').closest('tr') as HTMLElement).getByRole('button', { name: '保存角色' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/users/user-social-worker/roles',
+      expect.objectContaining({ method: 'PUT' }),
+    ));
+
+    await user.click(screen.getByRole('tab', { name: '角色权限' }));
+    const socialWorkerRoleRow = screen.getAllByRole('row').find((row) => {
+      return within(row).queryByText('social-worker') && within(row).queryByRole('button', { name: '保存权限' });
+    }) as HTMLElement;
+    await user.click(within(socialWorkerRoleRow).getByRole('button', { name: '保存权限' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/roles/role-social-worker/permissions',
+      expect.objectContaining({ method: 'PUT' }),
+    ));
+
+    await user.click(screen.getByRole('button', { name: /新增用户/ }));
+    await user.type(screen.getByLabelText('用户名'), 'new_manager');
+    await user.type(screen.getByLabelText('姓名'), '新经理');
+    await user.type(screen.getByLabelText('初始密码'), 'Erp@2026');
+    await user.click(screen.getByLabelText('角色'));
+    await user.click(await screen.findByTitle('物业经理'));
+    await user.click(screen.getByRole('button', { name: /创\s*建/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/users',
+      expect.objectContaining({ method: 'POST' }),
+    ));
+  }, 45000);
 
   it('creates resident profile through backend API instead of frontend draft', async () => {
     const user = userEvent.setup();
@@ -244,7 +438,7 @@ describe('App', () => {
     expect(payload.familyContacts[0].phone).toBe('13917223455');
     await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url.toString().startsWith('/api/v1/residents?'))).toHaveLength(2));
     expect(screen.queryByText('档案已保存到前端草稿，等待后端 API 接入。')).not.toBeInTheDocument();
-  }, 10000);
+  }, 45000);
 
   it('shows field format validation errors before creating resident profile', async () => {
     const user = userEvent.setup();

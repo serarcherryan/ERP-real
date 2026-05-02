@@ -26,18 +26,19 @@ describe('resident profile permissions', () => {
 
   it('filters residents by tenant-scoped view inputs without leaking hidden rows', () => {
     const result = filterResidents(residents, 'social-worker', {
-      facilityId: 'facility-east',
+      facilityId: 'facility-hecheng',
       keyword: 'CY-2026',
     });
 
     expect(result).toHaveLength(2);
-    expect(result.every((resident) => resident.facilityId === 'facility-east')).toBe(true);
+    expect(result.every((resident) => resident.facilityId === 'facility-hecheng')).toBe(true);
   });
 
   it('flattens admission summary for cross-end list views', () => {
     const view = toResidentView(residents[0], 'social-worker');
 
     expect(view.room).toBe(residents[0].admission.room);
+    expect(view.room).toBe('和成养老 - 1栋 - 3楼 - 301号房');
     expect(view.bed).toBe(residents[0].admission.bed);
     expect(view.careLevel).toBe(residents[0].admission.careLevel);
     expect(view.completenessScore).toBeGreaterThanOrEqual(90);

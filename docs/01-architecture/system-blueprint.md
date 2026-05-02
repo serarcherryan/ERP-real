@@ -20,6 +20,7 @@
 | Web 管理端 | React + TypeScript + Ant Design Pro | 适合 ERP 后台、表格、表单、权限菜单和多视图 |
 | 小程序端 | Taro + React + TypeScript | 复用前端技术栈，优先支持微信小程序 |
 | 后端 | Java 21 + Spring Boot 3 + Spring Modulith | 前期模块化单体，后期按压力拆服务 |
+| 认证 | Spring Security + JWT + BCrypt | Web 登录、无状态 API 认证、密码 hash 存储 |
 | API 契约 | REST + OpenAPI | Web、小程序、内部服务统一契约 |
 | 主数据库 | PostgreSQL | 事务、复杂查询、JSONB、分区和索引能力较强 |
 | 缓存 | Redis | 权限缓存、字典缓存、热点数据、幂等键、限流 |
@@ -41,7 +42,7 @@ API Gateway / BFF Layer
         |
 Modular Backend Application
   Tenant & Organization
-  Auth & Permission
+  Auth & Permission (sys_users, JWT, AuthContext)
   Resident Profile
   Admission & Living
   Work Order
@@ -74,10 +75,13 @@ Data Stores & Middleware
 
 ```text
 apps/
+  backend/            后端模块化单体，Spring Boot + PostgreSQL/Flyway
   web-admin/          Web 管理端
   staff-miniapp/      员工小程序，后续按 Taro 创建
   family-miniapp/     家属/用户小程序，后续按 Taro 创建
   mobile-app/         后续 App
+docker/
+  dev/                本地开发 Docker Compose 依赖
 packages/
   shared-domain/      跨端领域类型、角色权限、字段脱敏和共享业务规则
   api-client/         OpenAPI 生成的请求客户端和 DTO
@@ -85,6 +89,8 @@ packages/
 ```
 
 - 端侧应用只放在 `apps/`，共享能力只放在 `packages/`。
+- 后端模块化单体放在 `apps/backend`，当前首个落地模块为房间管理。
+- 开发环境依赖优先由 `docker/dev/docker-compose.yml` 管理；生产环境只固化 profile 和外部配置入口，部署拓扑待生产方案确认。
 - `packages/shared-domain` 可被 Web、小程序和 App 共同依赖，但不得反向依赖具体端。
 - API DTO、权限常量、字段策略和字典应优先共享，避免多端重复定义。
 - 根目录 workspace 脚本负责统一测试、构建和端侧启动。
@@ -93,7 +99,9 @@ packages/
 
 | 模块 | 范围 | 不做范围 |
 | --- | --- | --- |
-| 长者档案管理 | 基础信息、入住状态、房间床位、家属联系人、标签、健康摘要、服务记录时间线 | 完整医疗病历、完整财务账单 |
+| 长者档案管理 | 基础信息、入住状态、房间床位引用、家属联系人、标签、健康摘要、服务记录时间线 | 完整医疗病历、完整财务账单、房间主数据维护 |
+| 认证与权限 | Web 登录、JWT 签发、当前用户上下文、角色/机构上下文注入 | 生产 SSO、MFA、账号锁定、密码找回、权限配置 UI |
+| 房间管理 | 和成养老区、楼栋、楼层、房间、容量、状态、可住房间查询 | 复杂 BIM、门禁设备、能耗计量 |
 | 工单管理 | 创建、分派、接单、执行、验收、关闭、退回、超时提醒、回访评价 | 外部维修商结算、复杂 SLA 计费 |
 | 数据驾驶舱 | 入住率、房态、年龄/性别/疾病分类、工单数量、服务频次、待办超时、活动参与率 | 自助 BI、任意 SQL 查询 |
 
@@ -190,6 +198,10 @@ Prometheus / Grafana / Loki / Tempo
 - `docs/09-decisions/ADR-0002-frontend-stack.md`
 - `docs/09-decisions/ADR-0003-data-analytics-architecture.md`
 - `docs/09-decisions/ADR-0004-frontend-monorepo-workspace.md`
+
+当前已落地但尚未单独 ADR 固化的实现：
+
+- 认证与权限首版使用 Spring Security + JWT + `sys_users` + BCrypt，契约见 `docs/03-apis/auth-login.md`。
 
 任何满足以下条件的选择都必须继续创建 ADR：
 

@@ -7,7 +7,7 @@
 | 机构与租户 | Tenant, Facility, Department | 多机构、多院区、组织结构 | 中 | P0 |
 | 用户与权限 | User, Role, Permission, DataScope, StaffProfile | 登录、角色、数据权限、字段权限 | 高 | P0 |
 | 长者档案 | Resident, FamilyContact, ResidentTag, HealthSummary | 长者基础资料、联系人、标签、健康摘要 | 高 | P0 |
-| 入住生活 | Admission, Contract, BedAssignment, Room, Bed | 房态、入住办理、合同、换房、退住 | 高 | P1 |
+| 入住生活 | Admission, Contract, HousingZone, Building, Floor, Room, BedAssignment | 房态、住房层级、入住办理、合同、换房、退住 | 高 | P1 |
 | 工单中心 | WorkOrder, Assignment, WorkOrderAction, Acceptance | 保洁、维修、服务派工、执行与验收 | 中 | P0 |
 | 关怀沟通 | VisitRecord, FamilyCommunication, FollowUpReminder | 一日三巡、入户访视、家属沟通、回访提醒 | 高 | P1 |
 | 照护健康 | CarePlan, Assessment, CareRecord, VitalSign | 评估、照护计划、执行记录、生命体征 | 极高 | P1 |
@@ -65,6 +65,32 @@
   - work_order.status_changed.v1
 审计要求:
   - 分派、接单、完成、验收、退回、关闭必须审计
+```
+
+### RoomManagement
+
+```text
+聚合名称: RoomManagement
+所属业务域: 入住生活
+聚合根: HousingZone / Room
+内部实体: Building, Floor, Room, BedAssignment
+值对象: RoomLocation, RoomCapacity, RoomStatus
+生命周期:
+  - HousingZone: Active -> Inactive
+  - Room: Available -> Occupied -> Maintenance -> Inactive
+核心不变量:
+  - 当前首期只有一个活动区: 和成养老
+  - 居住空间层级固定为 区 -> 栋 -> 楼 -> 房
+  - 同一租户、机构、楼层下 room_no 必须唯一
+  - 房间 occupied_count 不得超过 capacity
+  - 长者档案只能引用 room_id/bed_id，不得直接维护房间主数据
+禁止的跨聚合直接修改:
+  - 长者档案不得直接创建、修改、停用房间
+  - 工单不得直接修改房间占用数
+领域事件:
+  - room.occupancy_changed.v1（后端接入床位占用时创建）
+审计要求:
+  - 创建、修改、停用、容量变更和占用调整必须审计
 ```
 
 ### DashboardMetric

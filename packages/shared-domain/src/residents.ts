@@ -1,4 +1,5 @@
 import { hasPermission, RoleKey } from './roles';
+import { getRoomLocationLabel, HECHENG_ZONE_ID, roomCatalog } from './rooms';
 
 export type ResidentStatus = 'Draft' | 'Active' | 'Archived';
 export type Gender = 'male' | 'female';
@@ -25,7 +26,6 @@ export interface ResidentHealthProfile {
   cognitiveStatus: string;
   dietRequirement: string;
   fallRiskLevel: RiskLevel;
-  pressureSoreRiskLevel: RiskLevel;
   emergencyPlan: string;
   lastAssessmentAt: string;
 }
@@ -34,6 +34,10 @@ export interface ResidentAdmissionProfile {
   admissionStatus: AdmissionStatus;
   admissionDate: string;
   contractNo: string;
+  zoneId: string;
+  buildingId: string;
+  floorId: string;
+  roomId: string;
   room: string;
   bed: string;
   nursingZone: string;
@@ -41,7 +45,6 @@ export interface ResidentAdmissionProfile {
   paymentType: string;
   medicalInsuranceType: string;
   responsibleSocialWorker: string;
-  caseManager: string;
 }
 
 export interface Resident {
@@ -54,7 +57,6 @@ export interface Resident {
   preferredName: string;
   gender: Gender;
   birthDate: string;
-  age: number;
   identityType: string;
   identityNo: string;
   identityNoHash: string;
@@ -76,6 +78,10 @@ export interface Resident {
   nextFollowUpDate: string;
   completenessScore: number;
   missingFields: string[];
+  lastServiceOperatorName?: string;
+  nextFollowUpOperatorName?: string;
+  createdByName?: string;
+  updatedByName?: string;
   createdAt: string;
   updatedAt: string;
   version: number;
@@ -96,14 +102,13 @@ export const residents: Resident[] = [
   {
     id: 'res-001',
     tenantId: 'tenant-yiyang',
-    facilityId: 'facility-east',
+    facilityId: 'facility-hecheng',
     departmentId: 'dept-care-a',
     residentNo: 'CY-2026-0001',
     name: '陈兰英',
     preferredName: '陈阿姨',
     gender: 'female',
     birthDate: '1944-05-12',
-    age: 82,
     identityType: '居民身份证',
     identityNo: '310101194405126428',
     identityNoHash: 'hash-id-001',
@@ -113,20 +118,23 @@ export const residents: Resident[] = [
     formerOccupation: '退休教师',
     phone: '13821886721',
     householdAddress: '上海市黄浦区外滩街道',
-    currentAddress: '东区颐养中心 3F 护理一区',
+    currentAddress: '和成养老 1栋 3楼',
     status: 'Active',
     admission: {
       admissionStatus: 'admitted',
       admissionDate: '2024-09-12',
       contractNo: 'HT-2024-0912-001',
-      room: '3F-护理一区-301',
+      zoneId: HECHENG_ZONE_ID,
+      buildingId: 'building-1',
+      floorId: 'floor-1-3',
+      roomId: 'room-1-3-301',
+      room: getRoomLocationLabel(roomCatalog, 'room-1-3-301'),
       bed: 'A床',
       nursingZone: '护理一区',
       careLevel: '二级护理',
       paymentType: '月付',
       medicalInsuranceType: '城镇职工医保',
       responsibleSocialWorker: '林亦辰',
-      caseManager: '陆欣',
     },
     health: {
       bloodType: 'A型',
@@ -136,7 +144,6 @@ export const residents: Resident[] = [
       cognitiveStatus: '轻度记忆下降',
       dietRequirement: '低盐软食',
       fallRiskLevel: 'high',
-      pressureSoreRiskLevel: 'medium',
       emergencyPlan: '夜间离床触发巡查，跌倒后联系家属并同步护理主管。',
       lastAssessmentAt: '2026-04-18',
     },
@@ -167,14 +174,13 @@ export const residents: Resident[] = [
   {
     id: 'res-002',
     tenantId: 'tenant-yiyang',
-    facilityId: 'facility-east',
+    facilityId: 'facility-hecheng',
     departmentId: 'dept-care-b',
     residentNo: 'CY-2026-0018',
     name: '周建国',
     preferredName: '周叔',
     gender: 'male',
     birthDate: '1949-12-08',
-    age: 76,
     identityType: '居民身份证',
     identityNo: '330102194912085213',
     identityNoHash: 'hash-id-002',
@@ -184,20 +190,23 @@ export const residents: Resident[] = [
     formerOccupation: '工程师',
     phone: '13611990243',
     householdAddress: '浙江省杭州市上城区',
-    currentAddress: '东区颐养中心 5F 自理区',
+    currentAddress: '和成养老 1栋 5楼',
     status: 'Active',
     admission: {
       admissionStatus: 'admitted',
       admissionDate: '2025-03-04',
       contractNo: 'HT-2025-0304-018',
-      room: '5F-自理区-512',
+      zoneId: HECHENG_ZONE_ID,
+      buildingId: 'building-1',
+      floorId: 'floor-1-5',
+      roomId: 'room-1-5-512',
+      room: getRoomLocationLabel(roomCatalog, 'room-1-5-512'),
       bed: 'B床',
       nursingZone: '自理区',
       careLevel: '三级护理',
       paymentType: '季付',
       medicalInsuranceType: '异地医保备案',
       responsibleSocialWorker: '顾文静',
-      caseManager: '邵宁',
     },
     health: {
       bloodType: 'O型',
@@ -207,7 +216,6 @@ export const residents: Resident[] = [
       cognitiveStatus: '正常',
       dietRequirement: '控糖饮食',
       fallRiskLevel: 'medium',
-      pressureSoreRiskLevel: 'low',
       emergencyPlan: '低血糖时通知护理站并联系女儿。',
       lastAssessmentAt: '2026-04-10',
     },
@@ -238,14 +246,13 @@ export const residents: Resident[] = [
   {
     id: 'res-003',
     tenantId: 'tenant-yiyang',
-    facilityId: 'facility-west',
+    facilityId: 'facility-hecheng',
     departmentId: 'dept-care-a',
     residentNo: 'CY-2025-0211',
     name: '黄秀珍',
     preferredName: '黄奶奶',
     gender: 'female',
     birthDate: '1937-06-01',
-    age: 89,
     identityType: '居民身份证',
     identityNo: '320105193706014026',
     identityNoHash: 'hash-id-003',
@@ -261,6 +268,10 @@ export const residents: Resident[] = [
       admissionStatus: 'pre_admission',
       admissionDate: '2026-04-28',
       contractNo: '待签约',
+      zoneId: HECHENG_ZONE_ID,
+      buildingId: 'building-2',
+      floorId: 'floor-2-2',
+      roomId: 'room-2-2-218',
       room: '待分配',
       bed: '-',
       nursingZone: '待评估',
@@ -268,7 +279,6 @@ export const residents: Resident[] = [
       paymentType: '待确认',
       medicalInsuranceType: '待确认',
       responsibleSocialWorker: '林亦辰',
-      caseManager: '待分配',
     },
     health: {
       bloodType: '待补充',
@@ -278,7 +288,6 @@ export const residents: Resident[] = [
       cognitiveStatus: '待评估',
       dietRequirement: '待评估',
       fallRiskLevel: 'medium',
-      pressureSoreRiskLevel: 'medium',
       emergencyPlan: '入院评估完成后生成。',
       lastAssessmentAt: '待评估',
     },

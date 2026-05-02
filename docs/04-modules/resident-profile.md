@@ -9,7 +9,7 @@
 | 负责人 | TBD |
 | 业务优先级 | P0 |
 | 首发端 | Web 管理端 / 员工小程序 |
-| 依赖模块 | 机构与租户、用户与权限、入住生活、审计合规、文件服务 |
+| 依赖模块 | 机构与租户、用户与权限、入住生活、房间管理、审计合规、文件服务 |
 | 下游影响 | 工单中心、照护健康、关怀沟通、数据中心、消息通知 |
 
 ## 2. 业务目标
@@ -29,14 +29,22 @@
 
 | 功能 | 说明 | 首期端 |
 | --- | --- | --- |
-| 档案总览 | 按机构、关键字、状态查看长者档案，展示入住状态、房间床位、护理等级、风险和完整度 | Web 管理端 |
+| 档案总览 | 按机构、关键字、状态查看长者档案，展示入住状态、房间管理引用的区-栋-楼-房、护理等级、风险和完整度 | Web 管理端 |
 | 新建档案 | 录入基础身份、入住信息、联系人、健康摘要和初始标签 | Web 管理端 |
-| 编辑档案 | 维护基础信息、联系人、照护需求、健康风险摘要和待补字段 | Web 管理端 |
+| 编辑档案 | 按档案摘要、入住信息、联系人、健康风险分页维护基础信息、联系人、照护需求和健康风险摘要 | Web 管理端 |
 | 详情查看 | 按档案摘要、入住信息、联系人、健康风险、完整度、服务时间线分 Tab 查看 | Web 管理端 |
 | 字段脱敏 | 物业角色和普通查看默认脱敏身份证、手机号和联系人电话 | Web 管理端 / 共享包 |
 | 档案完整度 | 根据必填字段、入住绑定、联系人、健康评估、合同和附件计算完整度 | Web 管理端 / BFF |
-| 风险标识 | 展示跌倒、压疮、慢病、认知、饮食等照护风险摘要 | Web 管理端 |
+| 风险标识 | 展示跌倒、慢病、认知、饮食等照护风险摘要 | Web 管理端 |
 | 导出审批 | 导出需权限、原因、范围和审计，首期仅保留入口 | Web 管理端 |
+
+### 3.2 房间同步规则
+
+- 长者档案只保存 `zone_id/building_id/floor_id/room_id/bed_id` 引用和必要展示摘要。
+- 房间主数据由房间管理模块拥有，长者档案不得直接创建、修改、停用房间。
+- 当前居住地点展示格式为：`和成养老 - 1栋 - 3楼 - 301号房`。
+- 当前首期只有一个区：`和成养老`。
+- 换房、床位释放和占用数变更应通过入住生活/房间管理服务完成，再同步档案摘要。
 
 ## 4. 领域模型
 
@@ -52,9 +60,9 @@
 
 | 表/集合 | 用途 | 关键字段 | 索引 | 数据量预估 |
 | --- | --- | --- | --- | --- |
-| residents | 长者基础档案与入住摘要 | id, tenant_id, facility_id, department_id, resident_no, name, gender, birth_date, identity_no_hash, status, admission_status, room_id, bed_id, care_level, completeness_score, version | tenant_id + facility_id + resident_no, tenant_id + identity_no_hash, tenant_id + facility_id + status, tenant_id + name | 每机构千级到万级 |
+| residents | 长者基础档案与入住摘要 | id, tenant_id, facility_id, department_id, resident_no, name, gender, birth_date, identity_no_hash, status, admission_status, zone_id, building_id, floor_id, room_id, bed_id, care_level, completeness_score, version | tenant_id + facility_id + resident_no, tenant_id + identity_no_hash, tenant_id + facility_id + status, tenant_id + room_id | 每机构千级到万级 |
 | family_contacts | 家属联系人 | id, tenant_id, facility_id, resident_id, name, relation, phone_cipher, phone_hash, is_emergency, is_guardian, priority | resident_id, tenant_id + phone_hash | 每长者 1-5 条 |
-| resident_health_summaries | 健康风险摘要 | id, tenant_id, facility_id, resident_id, blood_type, allergy_summary, chronic_disease_summary, fall_risk_level, pressure_sore_risk_level, diet_requirement, emergency_plan | resident_id, tenant_id + facility_id + fall_risk_level | 每长者 1 条 |
+| resident_health_summaries | 健康风险摘要 | id, tenant_id, facility_id, resident_id, blood_type, allergy_summary, chronic_disease_summary, fall_risk_level, diet_requirement, emergency_plan | resident_id, tenant_id + facility_id + fall_risk_level | 每长者 1 条 |
 | resident_tags | 长者标签 | id, tenant_id, facility_id, resident_id, tag_code | resident_id + tag_code | 每长者 0-20 条 |
 | resident_attachments | 附件引用 | id, tenant_id, facility_id, resident_id, file_id, category | resident_id + category | 按附件量增长 |
 | resident_profile_snapshots | 档案摘要投影 | resident_id, summary_json, updated_at | tenant_id + facility_id, updated_at | 与长者数量同级 |
@@ -66,6 +74,7 @@
 | 类型 | 名称 | 调用方/订阅方 | 契约文件 |
 | --- | --- | --- | --- |
 | API | Resident Profile Management | Web 管理端、员工小程序、BFF | `docs/03-apis/resident-profile-management.md` |
+| API | Room Management | Web 管理端、长者档案 BFF、入住办理 BFF | `docs/03-apis/room-management.md` |
 | API | Resident Timeline Query | Web 管理端、驾驶舱 BFF | 待创建 |
 | Event | resident_profile.updated.v1 | 数据中心、搜索、审计、通知 | `docs/03-apis/resident-profile-updated-event.md` |
 

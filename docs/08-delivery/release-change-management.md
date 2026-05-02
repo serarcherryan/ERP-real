@@ -10,6 +10,14 @@
 | staging | 预发布 | 接近生产的脱敏数据 | Tech Lead |
 | production | 生产 | 真实数据 | Release Owner |
 
+当前实现约定：
+
+- 本地/开发后端默认使用 `SPRING_PROFILES_ACTIVE=dev`，PostgreSQL 由 `docker/dev/docker-compose.yml` 启动。
+- 自动化测试使用 `test` profile，采用 H2 PostgreSQL mode + Flyway，避免依赖本机数据库状态。
+- 生产使用 `prod` profile，必须通过环境变量注入 `SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME`、`SPRING_DATASOURCE_PASSWORD`，并提供 `ERP_AUTH_JWT_SECRET` 或等价安全配置。生产数据库拓扑、密钥管理、高可用、备份、身份源和部署平台尚未固化，后续需要独立 ADR。
+- `dev/test` profile 内置开发 Bearer token fallback；`prod` 不内置开发 token。
+- 当前 `V4__sys_users.sql` 会初始化 5 个演示账号，初始密码为 `Erp@2026`；生产发布前必须替换初始化策略或强制首登改密。
+
 ## 2. 发布清单
 
 ```text
@@ -68,4 +76,3 @@ Feature flag:
 | 队列积压 | 30-60 分钟 |
 | 核心业务成功率 | 1 个业务周期 |
 | 用户反馈 | 1-3 天 |
-

@@ -13,10 +13,13 @@
 
 ```text
 apps/
+  backend/            后端模块化单体，Spring Boot + PostgreSQL/Flyway
   web-admin/          Web 管理端
   staff-miniapp/      员工小程序，后续创建
   family-miniapp/     家属/用户小程序，后续创建
   mobile-app/         后续 App，按需要创建
+docker/
+  dev/                本地开发 Docker Compose 依赖
 packages/
   shared-domain/      跨端领域类型、权限、脱敏和共享业务规则
   api-client/         OpenAPI 生成客户端，后续创建
@@ -41,14 +44,43 @@ docs/
 ## 当前工程命令
 
 ```bash
+npm run start        # 一键启动开发环境：Docker PostgreSQL + 后端 + Web 管理端
+npm run start:dev    # 同上
 npm run dev:web      # 启动 Web 管理端
+npm run start:backend # 启动开发后端，本机 Maven + Docker PostgreSQL
+npm run start:backend:docker # 使用 Docker Compose 启动后端和 PostgreSQL
 npm test             # 运行所有 workspace 测试
 npm run build        # 构建所有 workspace
+npm run test:backend # 运行后端 Maven 测试
+npm run build:backend # 打包后端 Spring Boot 应用
 npm run test:shared  # 运行共享领域包测试
 npm run test:web     # 运行 Web 管理端测试
 ```
 
 根目录采用 npm workspaces 管理多端代码。新增小程序或 App 时优先创建到 `apps/`，共享类型、权限、字典、校验和 API client 放到 `packages/`，并同步更新 Harness 文档与测试用例。
+
+后端当前按 `dev/test/prod` profile 区分环境：
+
+- `dev`：默认开发环境，PostgreSQL 由 `docker/dev/docker-compose.yml` 提供，便于本地联调。
+- `test`：使用 H2 PostgreSQL mode + Flyway，用于自动化测试。
+- `prod`：只保留生产 profile 和外部环境变量入口，数据库、部署形态、密钥管理、高可用和正式身份源方案待生产架构确认后再固化。
+
+Web 管理端当前通过 `/api/v1/auth/login` 登录，后端使用 `sys_users` + BCrypt + JWT。开发环境内置账号：
+
+| 用户名 | 角色 | 初始密码 |
+| --- | --- | --- |
+| social_worker | 社工 | Erp@2026 |
+| sw_supervisor | 社工主管 | Erp@2026 |
+| dept_manager | 部门经理 | Erp@2026 |
+| prop_manager | 物业经理 | Erp@2026 |
+| prop_supervisor | 物业主管 | Erp@2026 |
+
+开发接口也保留 Bearer token fallback 便于联调，例如：
+
+```bash
+curl -H "Authorization: Bearer dev-social-worker-supervisor-token" \
+  http://localhost:8080/api/v1/rooms/tree
+```
 
 ## 使用顺序
 

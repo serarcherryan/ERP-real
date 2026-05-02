@@ -79,10 +79,13 @@ Web、小程序、App 和共享前端能力统一放在当前 monorepo 中管理
 
 ```text
 apps/
+  backend/            后端模块化单体，Spring Boot + PostgreSQL/Flyway
   web-admin/          Web 管理端
   staff-miniapp/      员工小程序
   family-miniapp/     家属/用户小程序
   mobile-app/         后续 App
+docker/
+  dev/                本地开发 Docker Compose 依赖
 packages/
   shared-domain/      领域类型、角色权限、脱敏和可跨端复用的业务规则
   api-client/         OpenAPI 生成的客户端和 DTO
@@ -90,6 +93,7 @@ packages/
 ```
 
 - 新端应放入 `apps/<end-name>/`，不要在仓库根目录直接创建端侧源码。
+- 后端服务放入 `apps/backend/`，开发依赖优先通过 `docker/dev/` 管理。
 - 可跨端复用的类型、权限、字典、脱敏、校验和 API 客户端应放入 `packages/`。
 - 端侧可以依赖共享包，但共享包不得依赖任何具体端。
 - 根目录 `package.json` 负责 workspace、统一测试和构建脚本。

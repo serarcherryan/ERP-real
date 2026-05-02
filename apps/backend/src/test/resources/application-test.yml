@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:erp_real_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+erp:
+  auth:
+    jwt-secret: test-jwt-secret-key-must-be-at-least-32-bytes-long!!
+    tokens:
+      dev-property-manager-token:
+        user-id: user-property-manager
+        display-name: 物业经理
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: property-manager
+      dev-social-worker-token:
+        user-id: user-social-worker
+        display-name: 社工
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: social-worker
+      dev-social-worker-supervisor-token:
+        user-id: user-social-worker-supervisor
+        display-name: 社工主管
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: social-worker-supervisor

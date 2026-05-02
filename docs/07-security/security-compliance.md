@@ -17,6 +17,15 @@ User -> Role -> Permission
 User -> DataScope -> Tenant/Facility/Department/Resident
 ```
 
+当前落地实现：
+
+- 后台账号存储在 `sys_users`，密码以 BCrypt hash 存储。
+- `POST /api/v1/auth/login` 校验用户名密码后签发 8 小时 JWT。
+- JWT claims 包含 `userId(sub)`、`displayName`、`role`、`tenantId`、`facilityId`。
+- Web 管理端把 `token` 和 `user` 保存到 `localStorage`，后续请求通过 `Authorization: Bearer <token>` 访问后端。
+- 后端 `AuthFilter` 解析 JWT 并写入 `AuthContext`，业务模块通过 `RequestContext` 获取租户、机构、角色和操作者。
+- `dev/test` 保留静态 token fallback 用于联调；生产不得依赖静态 token。
+
 权限判断至少包含：
 
 - 功能权限：能不能操作
@@ -38,6 +47,7 @@ User -> DataScope -> Tenant/Facility/Department/Resident
 | 事件 | 是否必须 | 内容 |
 | --- | --- | --- |
 | 登录失败 | 是 | 用户、IP、原因 |
+| 登录成功 | 建议 | 用户、角色、来源端 |
 | 查看高敏感数据 | 是 | 用户、资源、原因、范围 |
 | 修改老人档案 | 是 | 前后值、操作者 |
 | 修改护理/医疗记录 | 是 | 前后值、复核信息 |
@@ -54,4 +64,5 @@ User -> DataScope -> Tenant/Facility/Department/Resident
 - 是否有操作审计
 - 是否处理上传文件风险
 - 是否避免在日志中输出敏感字段
-
+- JWT secret 是否来自安全配置，且生产环境不使用开发密钥
+- 登录失败是否有限流、告警或账号锁定策略

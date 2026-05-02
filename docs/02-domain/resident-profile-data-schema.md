@@ -37,7 +37,10 @@
 | admission_status | varchar(30) | 是 | 敏感 | 待入住、在住、暂离、退住 |
 | admission_date | date | 否 | 敏感 | 入住日期 |
 | contract_no | varchar(80) | 否 | 敏感 | 合同编号，只存摘要标识 |
-| room_id | uuid/string | 否 | 敏感 | 房间引用 |
+| zone_id | uuid/string | 否 | 敏感 | 居住区引用，首期为和成养老 |
+| building_id | uuid/string | 否 | 敏感 | 楼栋引用 |
+| floor_id | uuid/string | 否 | 敏感 | 楼层引用 |
+| room_id | uuid/string | 否 | 敏感 | 房间引用，归房间管理模块所有 |
 | bed_id | uuid/string | 否 | 敏感 | 床位引用 |
 | room_label | varchar(120) | 否 | 敏感 | 展示冗余，如 3F-301 |
 | bed_label | varchar(40) | 否 | 敏感 | 展示冗余 |
@@ -46,7 +49,6 @@
 | payment_type | varchar(40) | 否 | 敏感 | 月付、季付等摘要 |
 | medical_insurance_type | varchar(80) | 否 | 高敏感 | 医保类型摘要 |
 | responsible_social_worker_id | uuid/string | 否 | 敏感 | 责任社工 |
-| case_manager_id | uuid/string | 否 | 敏感 | 个案经理 |
 | health_summary | varchar(500) | 否 | 极高敏感 | 健康摘要，不保存完整病历 |
 | care_needs_json | jsonb | 否 | 高敏感 | 照护需求摘要 |
 | completeness_score | numeric(5,2) | 是 | 敏感 | 档案完整度 |
@@ -105,7 +107,6 @@
 | cognitive_status | varchar(80) | 否 | 极高敏感 | 认知状态 |
 | diet_requirement | varchar(120) | 否 | 高敏感 | 饮食要求 |
 | fall_risk_level | varchar(20) | 否 | 高敏感 | 跌倒风险 |
-| pressure_sore_risk_level | varchar(20) | 否 | 高敏感 | 压疮风险 |
 | emergency_plan | varchar(500) | 否 | 极高敏感 | 应急预案摘要 |
 | last_assessment_id | uuid/string | 否 | 极高敏感 | 评估记录引用 |
 | last_assessment_at | timestamptz | 否 | 高敏感 | 最近评估时间 |

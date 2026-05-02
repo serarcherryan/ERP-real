@@ -8,7 +8,14 @@
     "apps/*"
   ],
   "scripts": {
+    "start": "bash scripts/start-dev.sh",
+    "start:dev": "bash scripts/start-dev.sh",
     "start:web": "bash scripts/start-web.sh",
+    "start:backend": "bash scripts/start-backend-dev.sh",
+    "start:backend:docker": "bash scripts/start-backend-docker.sh",
+    "test:scripts": "node --test scripts/start-scripts.test.mjs",
+    "test:backend": "cd apps/backend && mvn test",
+    "build:backend": "cd apps/backend && mvn package",
     "dev:web": "npm run dev -w @erp-real/web-admin -- --host 0.0.0.0",
     "build": "npm run build --workspaces --if-present",
     "build:web": "npm run build -w @erp-real/web-admin",

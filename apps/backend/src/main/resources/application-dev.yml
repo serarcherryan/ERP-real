@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/erp_real}
+    username: ${SPRING_DATASOURCE_USERNAME:erp}
+    password: ${SPRING_DATASOURCE_PASSWORD:erp_dev_password}
+
+logging:
+  level:
+    com.erpreal.backend: DEBUG
+
+erp:
+  auth:
+    jwt-secret: dev-jwt-secret-key-must-be-at-least-32-bytes-long!!
+    tokens:
+      dev-property-manager-token:
+        user-id: user-property-manager
+        display-name: 物业经理
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: property-manager
+      dev-property-supervisor-token:
+        user-id: user-property-supervisor
+        display-name: 物业主管
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: property-supervisor
+      dev-department-manager-token:
+        user-id: user-department-manager
+        display-name: 部门经理
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: department-manager
+      dev-social-worker-token:
+        user-id: user-social-worker
+        display-name: 社工
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: social-worker
+      dev-social-worker-supervisor-token:
+        user-id: user-social-worker-supervisor
+        display-name: 社工主管
+        tenant-id: tenant-yiyang
+        facility-id: facility-hecheng
+        role: social-worker-supervisor

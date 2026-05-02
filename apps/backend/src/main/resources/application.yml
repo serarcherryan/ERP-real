@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: erp-real-backend
+  profiles:
+    default: dev
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+erp:
+  tenancy:
+    default-tenant-id: tenant-yiyang
+    default-facility-id: facility-hecheng
+  security:
+    field-encryption-key: ${ERP_FIELD_ENCRYPTION_KEY:dev-field-encryption-key-change-before-prod}
+  room:
+    only-active-zone-name: 和成养老

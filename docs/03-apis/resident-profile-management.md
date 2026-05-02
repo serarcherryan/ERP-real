@@ -23,6 +23,17 @@ POST /api/v1/residents/{residentId}/void
 POST /api/v1/residents/export-tasks
 ```
 
+### 2.1 当前实现状态
+
+| Endpoint | 状态 | 说明 |
+| --- | --- | --- |
+| `GET /api/v1/residents` | 已实现 | 后端数据库分页查询，按认证上下文限定 `tenantId/facilityId`，敏感字段脱敏 |
+| `POST /api/v1/residents` | 已实现 | 支持 `Idempotency-Key`、档案号/证件 hash 防重、敏感字段加密存储、审计 |
+| `GET /api/v1/residents/{residentId}` | 已实现 | 详情读取，按角色决定明文/脱敏；明文敏感查看写审计 |
+| `PATCH /api/v1/residents/{residentId}` | 已实现 | 乐观锁 `version`、子表替换、审计 |
+| `POST /api/v1/residents/{residentId}/void` | 已实现 | 作废为 `Archived`，记录原因和审计 |
+| `POST /api/v1/residents/export-tasks` | 未实现 | 当前返回 `501 RESIDENT_PROFILE_EXPORT_NOT_IMPLEMENTED`，等待导出审批与异步任务模块，不提供模拟成功响应 |
+
 ## 3. 业务说明
 
 - 用户故事：Web 管理端用户按角色查看、创建、修改、作废和导出授权范围内的长者档案。
@@ -78,16 +89,18 @@ POST /api/v1/residents/export-tasks
     "admissionStatus": "admitted",
     "admissionDate": "2024-09-12",
     "contractNo": "HT-2024-0912-001",
-    "roomId": "room-301",
+    "zoneId": "zone-hecheng-elderly-care",
+    "buildingId": "building-1",
+    "floorId": "floor-1-3",
+    "roomId": "room-1-3-301",
     "bedId": "bed-301-a",
-    "room": "3F-护理一区-301",
+    "room": "和成养老 - 1栋 - 3楼 - 301号房",
     "bed": "A床",
     "nursingZone": "护理一区",
     "careLevel": "二级护理",
     "paymentType": "月付",
     "medicalInsuranceType": "城镇职工医保",
-    "responsibleSocialWorkerId": "staff-001",
-    "caseManagerId": "staff-020"
+    "responsibleSocialWorkerId": "staff-001"
   },
   "familyContacts": [
     {
@@ -109,7 +122,6 @@ POST /api/v1/residents/export-tasks
     "cognitiveStatus": "轻度记忆下降",
     "dietRequirement": "低盐软食",
     "fallRiskLevel": "high",
-    "pressureSoreRiskLevel": "medium",
     "emergencyPlan": "夜间离床触发巡查"
   },
   "healthSummary": "高血压稳定，需关注夜间睡眠和跌倒风险。",
@@ -127,13 +139,13 @@ POST /api/v1/residents/export-tasks
 | name | string | 是 | 1-40 字符 | 长者姓名 |
 | preferredName | string | 否 | <= 40 字符 | 常用称呼 |
 | gender | string | 是 | male / female | 性别 |
-| birthDate | string | 是 | ISO 日期 | 出生日期 |
+| birthDate | string | 是 | ISO 日期；Web 管理端由居民身份证号自动推导后提交 | 出生日期 |
 | identityType | string | 是 | 字典值 | 证件类型 |
 | identityNo | string | 创建必填 | 后端加密存储并生成 hash | 证件号 |
 | phone | string | 否 | 后端加密存储并生成 hash | 长者联系电话 |
 | householdAddress | string | 否 | 后端加密存储 | 户籍地址 |
 | currentAddress | string | 否 | 后端加密存储 | 现住址 |
-| admission | object | 是 | 见数据 schema | 入住、合同、房间床位、医保缴费摘要 |
+| admission | object | 是 | 房间引用必须来自 Room Management API | 入住、合同、区-栋-楼-房、医保缴费摘要 |
 | familyContacts | array | 否 | 1-5 条 | 家属联系人 |
 | health | object | 否 | 只保存摘要和风险等级 | 健康风险摘要，不保存完整病历 |
 | healthSummary | string | 否 | <= 500 字符 | 健康摘要，不保存完整病历 |
@@ -161,7 +173,6 @@ POST /api/v1/residents/export-tasks
         "bed": "A床",
         "careLevel": "二级护理",
         "fallRiskLevel": "high",
-        "pressureSoreRiskLevel": "medium",
         "completenessScore": 96,
         "missingFields": [],
         "tags": ["重点关注", "慢病"],
@@ -182,6 +193,9 @@ POST /api/v1/residents/export-tasks
 | data.page | number | 当前页码 |
 | data.pageSize | number | 分页大小 |
 | data.total | number | 总数 |
+| data.createdByName | string | 详情响应字段，档案创建人的展示名称 |
+| data.updatedByName | string | 详情响应字段，档案最近修改人的展示名称 |
+| data.lastServiceAt / data.nextFollowUpDate / data.createdAt / data.updatedAt | string | 详情时间字段，接口使用 ISO 8601；前端展示统一格式化为 `YYYY-MM-DD HH:mm:ss` 并展示操作人名称 |
 | traceId | string | 链路追踪 ID |
 
 ## 6. Error Codes

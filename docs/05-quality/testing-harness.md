@@ -52,8 +52,11 @@ docs/05-quality/test-case-lifecycle.md
 | --- | --- |
 | `npm test` | 所有 workspace 中声明的测试 |
 | `npm run build` | 所有 workspace 中声明的构建 |
+| `npm run test:scripts` | 启动脚本 dry-run 回归，验证端口透传、Docker Compose 命令和后端/Web 启动命令 |
 | `npm run test:web` | Web 管理端测试 |
 | `npm run test:shared` | 共享领域包测试 |
+| `npm run test:backend` | 后端 Maven 测试 |
+| `npm run build:backend` | 后端 Maven 打包，包含测试 |
 
 新增 `apps/` 或 `packages/` workspace 时，必须确保根目录命令能覆盖对应测试和构建。
 

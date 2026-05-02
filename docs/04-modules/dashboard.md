@@ -51,7 +51,7 @@
 | API | Dashboard Metric Query | 运营驾驶舱、Web 管理端 | 待创建 |
 | API | Dashboard Export | 运营驾驶舱、Web 管理端 | 待创建 |
 | Event | work_order.status_changed.v1 | 数据中心订阅 | `docs/03-apis/work-order-status-changed-event.md` |
-| Event | resident_profile.updated.v1 | 数据中心订阅 | `docs/03-apis/resident-profile-updated-event.md` |
+| Event | resident_profile.updated.v1 | 数据中心订阅；当前源模块尚未发布 | `docs/03-apis/resident-profile-updated-event.md` |
 | Event | dashboard.metric_refreshed.v1 | 通知、审计、运维监控 | 待创建 |
 
 ## 7. 权限与数据范围
@@ -83,7 +83,7 @@
 ## 10. 测试计划
 
 - 单元测试：指标口径计算、维度过滤、权限裁剪。
-- 集成测试：事件消费、预聚合写入、查询接口、导出任务。
+- 集成测试：事件消费、预聚合写入、查询接口、导出任务；当前等待源模块事件发布和驾驶舱后端实现后补充。
 - 契约测试：指标查询、导出创建、导出状态查询。
 - E2E 测试：管理层查看驾驶舱、下钻工单指标、导出报表。
 - 性能测试：高并发刷新、复杂维度查询、导出队列压力。

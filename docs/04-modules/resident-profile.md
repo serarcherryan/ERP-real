@@ -38,7 +38,14 @@
 | 风险标识 | 展示跌倒、慢病、认知、饮食等照护风险摘要 | Web 管理端 |
 | 导出审批 | 导出需权限、原因、范围和审计，首期仅保留入口 | Web 管理端 |
 
-### 3.2 房间同步规则
+### 3.2 当前实现状态
+
+- 后端实现位于 `apps/backend/src/main/java/com/erpreal/backend/resident`，当前覆盖列表、创建、详情、编辑、作废和导出任务占位接口。
+- Web 管理端已接入后端列表、创建、详情和编辑接口；导出任务接口当前显式返回 `501 RESIDENT_PROFILE_EXPORT_NOT_IMPLEMENTED`。
+- 档案号、证件号 hash、乐观锁版本、敏感字段加密/脱敏、明文敏感查看审计、修改审计和作废审计已落地。
+- 个案经理 `case_manager_id` 和压疮风险 `pressure_sore_risk_level` 已由 `V7__drop_case_manager_and_pressure_sore_risk.sql` 删除，前端、DTO 和测试不再提交或展示。
+
+### 3.3 房间同步规则
 
 - 长者档案只保存 `zone_id/building_id/floor_id/room_id/bed_id` 引用和必要展示摘要。
 - 房间主数据由房间管理模块拥有，长者档案不得直接创建、修改、停用房间。
@@ -53,19 +60,26 @@
 | Resident | 长者档案聚合根 | 长者档案 | Draft / Active / Archived |
 | FamilyContact | 家属或紧急联系人 | 长者档案 | Active / Inactive |
 | ResidentTag | 长者标签，如失智、独居、重点关注 | 长者档案 | Active / Deleted |
-| ResidentAttachment | 身份证、合同摘要、照片等附件引用 | 长者档案 | Active / Deleted |
+| ResidentAttachment | 身份证、合同摘要、照片等附件引用，当前未落库 | 长者档案 | Active / Deleted |
 | HealthSummary | 健康摘要，只保存概览和引用 | 长者档案 | Active |
 
 ## 5. 数据模型草案
 
 | 表/集合 | 用途 | 关键字段 | 索引 | 数据量预估 |
 | --- | --- | --- | --- | --- |
-| residents | 长者基础档案与入住摘要 | id, tenant_id, facility_id, department_id, resident_no, name, gender, birth_date, identity_no_hash, status, admission_status, zone_id, building_id, floor_id, room_id, bed_id, care_level, completeness_score, version | tenant_id + facility_id + resident_no, tenant_id + identity_no_hash, tenant_id + facility_id + status, tenant_id + room_id | 每机构千级到万级 |
+| resident_profiles | 长者基础档案与入住摘要 | id, tenant_id, facility_id, department_id, resident_no, name, gender, birth_date, identity_no_hash, status, admission_status, zone_id, building_id, floor_id, room_id, bed_id, room_label, bed_label, living_location_label, care_level, completeness_score, version | tenant_id + resident_no, tenant_id + identity_no_hash, tenant_id + facility_id + status, tenant_id + facility_id + room_id | 每机构千级到万级 |
 | family_contacts | 家属联系人 | id, tenant_id, facility_id, resident_id, name, relation, phone_cipher, phone_hash, is_emergency, is_guardian, priority | resident_id, tenant_id + phone_hash | 每长者 1-5 条 |
-| resident_health_summaries | 健康风险摘要 | id, tenant_id, facility_id, resident_id, blood_type, allergy_summary, chronic_disease_summary, fall_risk_level, diet_requirement, emergency_plan | resident_id, tenant_id + facility_id + fall_risk_level | 每长者 1 条 |
+| resident_health_summaries | 健康风险摘要 | id, tenant_id, facility_id, resident_id, blood_type, allergy_summary_text, chronic_disease_summary_text, fall_risk_level, diet_requirement, emergency_plan | resident_id, tenant_id + facility_id + fall_risk_level | 每长者 1 条 |
 | resident_tags | 长者标签 | id, tenant_id, facility_id, resident_id, tag_code | resident_id + tag_code | 每长者 0-20 条 |
-| resident_attachments | 附件引用 | id, tenant_id, facility_id, resident_id, file_id, category | resident_id + category | 按附件量增长 |
-| resident_profile_snapshots | 档案摘要投影 | resident_id, summary_json, updated_at | tenant_id + facility_id, updated_at | 与长者数量同级 |
+| resident_attachments | 附件引用 | id, tenant_id, facility_id, resident_id, file_id, category | resident_id + category | 尚未实现，后续接入文件服务时创建 |
+| resident_profile_snapshots | 档案摘要投影 | resident_id, summary_json, updated_at | tenant_id + facility_id, updated_at | 尚未实现，当前列表直接查询主表和子表 |
+
+当前 Flyway 迁移：
+
+- `V3__governance_idempotency_and_assignments.sql`：创建 `audit_logs`、`idempotency_records`、初版 `resident_profiles` 和 `bed_assignments`。
+- `V5__resident_profile_management.sql`：扩展长者档案主表，创建 `family_contacts`、`resident_health_summaries`、`resident_tags`。
+- `V6__remove_resident_profile_seed_data.sql`：移除演示档案种子数据。
+- `V7__drop_case_manager_and_pressure_sore_risk.sql`：删除个案经理和压疮风险字段。
 
 详细数据库字段见 `docs/02-domain/resident-profile-data-schema.md`。
 
@@ -76,7 +90,7 @@
 | API | Resident Profile Management | Web 管理端、员工小程序、BFF | `docs/03-apis/resident-profile-management.md` |
 | API | Room Management | Web 管理端、长者档案 BFF、入住办理 BFF | `docs/03-apis/room-management.md` |
 | API | Resident Timeline Query | Web 管理端、驾驶舱 BFF | 待创建 |
-| Event | resident_profile.updated.v1 | 数据中心、搜索、审计、通知 | `docs/03-apis/resident-profile-updated-event.md` |
+| Event | resident_profile.updated.v1 | 数据中心、搜索、审计、通知；当前仅有契约，后端尚未发布 | `docs/03-apis/resident-profile-updated-event.md` |
 
 ## 7. 权限与数据范围
 
@@ -118,7 +132,7 @@
 ## 10. 测试计划
 
 - 单元测试：档案状态、证件号防重、字段脱敏、权限判断。
-- 集成测试：租户隔离、乐观锁冲突、事件发布、审计写入。
+- 集成测试：租户隔离、乐观锁冲突、审计写入；事件发布待异步基础设施接入后补充。
 - 契约测试：档案 CRUD、列表分页、时间线查询。
 - E2E 测试：创建档案、修改联系人、查看时间线。
 - 性能测试：档案列表分页、模糊搜索、摘要加载。

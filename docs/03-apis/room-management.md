@@ -40,23 +40,18 @@ GET /api/v1/rooms/available
 ### 4.1 GET /api/v1/rooms/tree
 
 ```json
-{
-  "tenantId": "tenant-yiyang",
-  "facilityId": "facility-hecheng"
-}
+{}
 ```
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| tenantId | string | 是 | 来自认证上下文 | 租户隔离 |
-| facilityId | string | 是 | 用户授权机构 | 机构隔离 |
+| tenantId | string | 是 | 来自认证上下文 | 租户隔离，不接受客户端查询参数覆盖 |
+| facilityId | string | 是 | 来自认证上下文 | 机构隔离，不接受客户端查询参数覆盖 |
 
 ### 4.2 POST/PATCH /api/v1/rooms
 
 ```json
 {
-  "tenantId": "tenant-yiyang",
-  "facilityId": "facility-hecheng",
   "zoneId": "zone-hecheng-elderly-care",
   "buildingId": "building-1",
   "floorId": "floor-1-3",
@@ -70,8 +65,6 @@ GET /api/v1/rooms/available
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| tenantId | string | 是 | 来自认证上下文 | 租户隔离 |
-| facilityId | string | 是 | 用户授权机构 | 机构隔离 |
 | zoneId | string | 是 | 首期只能为和成养老区 | 居住区 |
 | buildingId | string | 是 | 必须属于 zoneId | 楼栋 |
 | floorId | string | 是 | 必须属于 buildingId | 楼层 |
@@ -80,6 +73,8 @@ GET /api/v1/rooms/available
 | capacity | number | 是 | 1-8 | 可住人数 |
 | status | string | 是 | available / occupied / maintenance / inactive | 房间状态 |
 | version | number | 修改必填 | 乐观锁版本 | 并发控制 |
+
+`tenantId` 和 `facilityId` 由后端认证上下文写入和校验，客户端不得通过请求体覆盖。
 
 ### 4.3 POST /api/v1/rooms/{roomId}/assignments
 

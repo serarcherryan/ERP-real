@@ -37,7 +37,7 @@ POST /api/v1/residents/export-tasks
 ## 3. 业务说明
 
 - 用户故事：Web 管理端用户按角色查看、创建、修改、作废和导出授权范围内的长者档案。
-- 前置条件：用户已认证，权限服务已返回功能权限、数据范围和字段权限。
+- 前置条件：用户已认证，后端从 Bearer JWT 或 dev token 中读取 `userId`、`tenantId`、`facilityId`、`role`。
 - 后置结果：档案写入长者档案模块，敏感查看、修改、作废和导出写入审计。
 - 幂等要求：创建接口必须支持 `Idempotency-Key`，按租户、证件号 hash、档案号防重复。
 - 权限要求：社工和社工主管可创建/修改；社工主管和部门经理可作废；部门经理、物业经理和授权管理员可导出；物业角色默认只读且敏感字段脱敏。
@@ -49,9 +49,6 @@ POST /api/v1/residents/export-tasks
 
 ```json
 {
-  "tenantId": "tenant-yiyang",
-  "facilityId": "facility-east",
-  "departmentId": "dept-care-a",
   "keyword": "陈兰英",
   "status": "Active",
   "page": 1,
@@ -61,20 +58,17 @@ POST /api/v1/residents/export-tasks
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| tenantId | string | 是 | 来自认证上下文 | 租户隔离维度 |
-| facilityId | string | 否 | 必须在用户数据范围内 | 机构过滤 |
-| departmentId | string | 否 | 必须在用户数据范围内 | 部门过滤 |
 | keyword | string | 否 | <= 50 字符 | 姓名、档案号、房间、标签搜索 |
 | status | string | 否 | Draft / Active / Archived | 档案状态 |
 | page | number | 是 | >= 1 | 页码 |
 | pageSize | number | 是 | 1-100 | 分页大小 |
 
+租户、机构和角色不从查询参数或请求体接收，统一来自认证上下文；当前列表接口暂不开放 `departmentId` 参数。
+
 ### 4.2 POST/PATCH /api/v1/residents
 
 ```json
 {
-  "tenantId": "tenant-yiyang",
-  "facilityId": "facility-east",
   "residentNo": "CY-2026-0001",
   "name": "陈兰英",
   "preferredName": "陈阿姨",
@@ -133,8 +127,6 @@ POST /api/v1/residents/export-tasks
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| tenantId | string | 是 | 来自认证上下文 | 租户隔离维度 |
-| facilityId | string | 是 | 必须在用户数据范围内 | 机构隔离维度 |
 | residentNo | string | 创建必填 | 同租户唯一 | 档案号 |
 | name | string | 是 | 1-40 字符 | 长者姓名 |
 | preferredName | string | 否 | <= 40 字符 | 常用称呼 |
@@ -153,6 +145,8 @@ POST /api/v1/residents/export-tasks
 | tags | array | 否 | <= 20 条 | 长者标签 |
 | version | number | 修改必填 | 乐观锁版本 | 防止并发覆盖 |
 
+`tenantId`、`facilityId`、`departmentId`、`createdBy` 和 `updatedBy` 由后端根据认证上下文和当前模块规则写入，客户端不得提交覆盖。当前实现中 `careNeeds`、`missingFields`、过敏史和慢病摘要以文本字段持久化；对外响应仍保持数组契约。
+
 ## 5. Response
 
 ```json
@@ -162,7 +156,7 @@ POST /api/v1/residents/export-tasks
       {
         "id": "res-001",
         "tenantId": "tenant-yiyang",
-        "facilityId": "facility-east",
+        "facilityId": "facility-hecheng",
         "residentNo": "CY-2026-0001",
         "name": "陈兰英",
         "status": "Active",
@@ -207,6 +201,7 @@ POST /api/v1/residents/export-tasks
 | RESIDENT_PROFILE_DUPLICATED | 409 | 证件号 hash 或档案号重复 | 展示疑似重复档案入口 |
 | RESIDENT_PROFILE_VERSION_CONFLICT | 409 | 乐观锁版本冲突 | 提示刷新后重试 |
 | RESIDENT_PROFILE_EXPORT_REASON_REQUIRED | 400 | 导出缺少原因 | 打开导出原因表单 |
+| RESIDENT_PROFILE_EXPORT_NOT_IMPLEMENTED | 501 | 导出任务当前尚未实现 | 保持入口占位，不展示导出成功 |
 | RESIDENT_PROFILE_RATE_LIMITED | 429 | 查询或导出触发限流 | 显示稍后重试 |
 
 ## 7. 兼容策略
